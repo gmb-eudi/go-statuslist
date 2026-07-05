@@ -1,0 +1,181 @@
+package statuslist
+
+import (
+	"context"
+	stdcrypto "crypto"
+	"fmt"
+	"time"
+)
+
+// Fetcher retrieves a status list / identifier list document by URI. In
+// services it wraps the platform-kit httpclient (correlation propagation); in
+// tests it is a fake with no network (ADR-0004; conventions.md: no network in
+// unit tests).
+type Fetcher interface {
+	Get(ctx context.Context, url string) ([]byte, error)
+}
+
+// Cache is an opaque, TTL-aware byte cache for fetched lists. It enforces its
+// own expiry: Get returns ok=false once an entry's ttl has elapsed.
+type Cache interface {
+	Get(key string) ([]byte, bool)
+	Set(key string, val []byte, ttl time.Duration)
+}
+
+// KeyResolver resolves the verification key of a status list token's issuer.
+// It is injected so trust-anchor resolution stays in the trust layer (hard
+// rule 6): go-statuslist never dereferences jku/x5u/kid to fetch keys. It
+// receives the list URI and the raw (unverified) token, from which a trust
+// resolver may read the kid / x5c header to select the key.
+type KeyResolver func(ctx context.Context, listURI string, token []byte) (stdcrypto.PublicKey, error)
+
+// CheckInput is one revocation query.
+type CheckInput struct {
+	Ref               StatusRef
+	IssuerKeyResolver KeyResolver
+	Policy            Policy
+	// CredentialValidity is the referenced credential's remaining technical
+	// validity. When 0 < CredentialValidity < ShortLivedThreshold the check is
+	// skipped (ARF Topic 7 VCR_01). Zero means "unknown" ⇒ never skip.
+	CredentialValidity time.Duration
+}
+
+// Checker performs revocation checks. Construct with NewChecker.
+type Checker struct {
+	fetcher         Fetcher
+	cache           Cache
+	now             func() time.Time
+	maxDecompressed int
+}
+
+// Option configures a Checker.
+type Option func(*Checker)
+
+// WithClock injects the clock used for exp/ttl/short-lived reasoning
+// (conventions.md). Ignored if nil.
+func WithClock(clk func() time.Time) Option {
+	return func(c *Checker) {
+		if clk != nil {
+			c.now = clk
+		}
+	}
+}
+
+// WithMaxDecompressed overrides the inflated-size cap (zip-bomb defence).
+// Values <= 0 are ignored.
+func WithMaxDecompressed(n int) Option {
+	return func(c *Checker) {
+		if n > 0 {
+			c.maxDecompressed = n
+		}
+	}
+}
+
+// NewChecker returns a Checker. cache may be nil (caching disabled).
+func NewChecker(fetcher Fetcher, cache Cache, opts ...Option) *Checker {
+	c := &Checker{
+		fetcher:         fetcher,
+		cache:           cache,
+		now:             time.Now,
+		maxDecompressed: DefaultMaxDecompressed,
+	}
+	for _, o := range opts {
+		o(c)
+	}
+	return c
+}
+
+// Check resolves the revocation status of the referenced credential. Fail
+// closed by default (hard rule 7): an inconclusive result returns
+// StatusUnknown with a non-nil error unless the client policy explicitly opts
+// into fail-open (Policy.FailClosed == false).
+//
+// The ARF Topic 7 VCR_01 short-lived exemption is applied first, before any
+// fetch (Task 6).
+func (c *Checker) Check(ctx context.Context, in CheckInput) (Status, Provenance, error) {
+	prov := Provenance{
+		URI:       in.Ref.URI,
+		Index:     in.Ref.Index,
+		ID:        in.Ref.ID,
+		CheckedAt: c.now(),
+	}
+	// ARF Topic 7 VCR_01: a credential valid for less than ShortLivedThreshold
+	// (24h; origin ETSI EN 319 411-1 v1.4.1 REV-6.2.4-03A) is exempt from
+	// revocation checking. Skip before any fetch. Zero validity = unknown ⇒
+	// never skip.
+	if in.CredentialValidity > 0 && in.CredentialValidity < ShortLivedThreshold {
+		prov.Outcome = OutcomeSkippedShortLived
+		return StatusSkippedShortLived, prov, nil
+	}
+	switch in.Ref.Kind {
+	case RefTokenStatusList:
+		return c.checkTokenStatusList(ctx, in, prov)
+	case RefIdentifierList:
+		return c.checkIdentifierList(ctx, in, prov)
+	default:
+		return c.failClosed(in.Policy, prov, fmt.Errorf("%w: ref kind %d", ErrUnsupported, in.Ref.Kind))
+	}
+}
+
+// failClosed applies the policy to an inconclusive result. Fail-closed
+// (default) surfaces the cause; the explicit per-client fail-open flag
+// (FailClosed == false) records the skip in Provenance and returns no error.
+func (c *Checker) failClosed(p Policy, prov Provenance, cause error) (Status, Provenance, error) {
+	if p.FailClosed {
+		prov.Outcome = OutcomeUnavailable
+		return StatusUnknown, prov, cause
+	}
+	prov.Outcome = OutcomeSkippedFailOpen
+	prov.FailOpen = true
+	return StatusUnknown, prov, nil
+}
+
+// cacheTTL derives the cache lifetime from the token's ttl claim (seconds) and
+// exp (absolute). ttl is the maximum caching time before a refresh (Token
+// Status List §8); exp caps it — never cache past the token's own expiry.
+// Returns 0 when neither is present ⇒ do not cache.
+func cacheTTL(ttl, exp int64, now time.Time) time.Duration {
+	best := time.Duration(-1)
+	if ttl > 0 {
+		best = time.Duration(ttl) * time.Second
+	}
+	if exp > 0 {
+		if until := time.Unix(exp, 0).Sub(now); until > 0 && (best < 0 || until < best) {
+			best = until
+		}
+	}
+	if best < 0 {
+		return 0
+	}
+	return best
+}
+
+// maybeCache stores a freshly fetched, verified list under its derived TTL. A
+// cache-served list is not re-stored.
+func (c *Checker) maybeCache(uri string, raw []byte, ttl, exp int64, fromCache bool) {
+	if c.cache == nil || fromCache {
+		return
+	}
+	if d := cacheTTL(ttl, exp, c.now()); d > 0 {
+		c.cache.Set(uri, raw, d)
+	}
+}
+
+// applyFreshness enforces the token's exp against the clock with a MaxStale
+// grace. exp is the token's own expiry (Token Status List §5); MaxStale is the
+// per-client grace during which a just-expired list is still accepted (marked
+// Stale in Provenance). Past exp+MaxStale the list is unavailable.
+func (c *Checker) applyFreshness(exp int64, p Policy, prov *Provenance) error {
+	if exp == 0 {
+		return nil // no exp ⇒ no token-level expiry (ttl still bounds caching, Task 7)
+	}
+	expTime := time.Unix(exp, 0)
+	now := c.now()
+	if now.After(expTime.Add(p.MaxStale)) {
+		return fmt.Errorf("%w: exp+MaxStale elapsed", ErrExpired)
+	}
+	if now.After(expTime) {
+		prov.Stale = true
+	}
+	return nil
+}
