@@ -68,7 +68,7 @@ const (
 )
 
 // RefKind selects the revocation mechanism. A Relying Party that verifies
-// revocation must support both (ARF Topic 7 VCR_02).
+// revocation must support both (ARF Topic 7 VCR_12).
 type RefKind int
 
 // RefKind values.

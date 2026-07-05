@@ -5,14 +5,15 @@ one small, framework-free Go module.
 
 It resolves whether a presented credential has been revoked, using the two
 mechanisms an EUDI Relying Party that checks revocation must support
-(ARF 2.9 Topic 7, VCR_02):
+(ARF 2.9 Topic 7, VCR_12):
 
 - **IETF Token Status List** status list tokens, in both **JWT** and **CWT**
-  form (`draft-ietf-oauth-status-list`): signature verification, `sub` binding
-  to the referenced list, zlib decompression under a strict output-size cap,
-  bit widths 1/2/4/8, and index lookup.
-- **ARF Attestation Revocation List** ("Identifier List"): a signed token
-  enumerating revoked credential identifiers — listed ⇒ revoked, absent ⇒ valid.
+  form (`draft-ietf-oauth-status-list-12`): signature verification, required
+  `typ` check, `sub` binding to the referenced list, zlib decompression under
+  a strict output-size cap, bit widths 1/2/4/8, and index lookup.
+- **ARF Attestation Revocation List** ("Identifier List", **experimental** —
+  see [Design](#design)): a signed token enumerating revoked credential
+  identifiers — listed ⇒ revoked, absent ⇒ valid.
 
 It is deliberately small and unopinionated about I/O: you inject an HTTP
 `Fetcher`, an optional `Cache`, a clock, and a `KeyResolver`; the library owns
@@ -182,7 +183,16 @@ func NewChecker(fetcher Fetcher, cache Cache, opts ...Option) *Checker
 
 func WithClock(func() time.Time) Option        // inject the clock (exp/ttl/short-lived reasoning); tests use a fixed clock
 func WithMaxDecompressed(n int) Option          // override the inflated-list size cap (default DefaultMaxDecompressed = 1 MiB)
+func WithClockSkew(d time.Duration) Option      // tolerate a clock difference between issuer and verifier on iat/exp checks (default 0)
 ```
+
+`WithClockSkew` is a **clock-difference tolerance**: it widens the window on
+both the `iat`-not-in-the-future check and the `exp` check by `d` in either
+direction. It is distinct from `Policy.MaxStale`, which is a *deliberate*
+grace period accepted **past** a token's `exp` (e.g. "keep using a list up to
+10 minutes after it expires while a refresh is in flight"). The two compose:
+a token is rejected as expired only once `exp + MaxStale + ClockSkew` has
+elapsed.
 
 ## How a check works
 
@@ -193,10 +203,17 @@ Both mechanisms share one pipeline; every step fails closed by default:
    (`VerifyJWS` for JWT, `VerifyCOSESign1` for CWT) using the key returned by
    your `KeyResolver`. The token format is taken from `StatusRef.Format`
    (`FormatJWT`/`FormatCWT`) or sniffed (`FormatAuto`).
-3. **sub binding** — the token's `sub` must equal `StatusRef.URI`, so a
+3. **type check** (Token Status List references only) — `typ` is REQUIRED and
+   validated: JWT header `typ == "statuslist+jwt"`, CWT protected-header label
+   `16 == "application/statuslist+cwt"`. Absent or wrong ⇒ `ErrWrongType`,
+   fail closed. This check does **not** apply to the Identifier List path,
+   which carries its own (currently unvalidated) `typ`.
+4. **sub binding** — the token's `sub` must equal `StatusRef.URI`, so a
    valid-but-wrong list cannot be substituted for the referenced one.
-4. **freshness** — `exp` is enforced with the `MaxStale` grace.
-5. **decode + read** — status list: zlib-inflate under the size cap, then read
+5. **freshness** — `iat` is rejected if it is later than `now + ClockSkew`
+   (`ErrIssuedInFuture`, fail closed); `exp` is enforced with the `MaxStale`
+   and `ClockSkew` grace (see [Construction options](#construction-options)).
+6. **decode + read** — status list: zlib-inflate under the size cap, then read
    the little-endian entry at `Index`. Identifier list: membership test on `ID`.
 
 Nothing is trusted before the signature is verified, and the MSO/claims are read
@@ -208,9 +225,9 @@ Verification-relevant failures are wrapped, typed sentinels (compare with
 `errors.Is`); services map them to problem codes such as
 `err:revocation:revoked` / `err:revocation:unavailable`:
 
-`ErrUnsupported`, `ErrFetch`, `ErrKeyUnresolved`, `ErrVerify`, `ErrMalformed`,
-`ErrSubMismatch`, `ErrUnknownBitWidth`, `ErrIndexOutOfRange`, `ErrDecompress`,
-`ErrDecompressTooBig`, `ErrExpired`.
+`ErrUnsupported`, `ErrFetch`, `ErrKeyUnresolved`, `ErrVerify`, `ErrWrongType`,
+`ErrMalformed`, `ErrSubMismatch`, `ErrUnknownBitWidth`, `ErrIndexOutOfRange`,
+`ErrDecompress`, `ErrDecompressTooBig`, `ErrExpired`, `ErrIssuedInFuture`.
 
 Errors carry only identifiers (list URIs, indices, credential identifiers, kids),
 bit widths and outcome enums — **never** a credential attribute value.
@@ -225,6 +242,24 @@ bit widths and outcome enums — **never** a credential attribute value.
 - **Trust stays in the trust layer**: key resolution is the injected
   `KeyResolver`'s job — go-statuslist never dereferences `jku`/`x5u`/`kid` to
   fetch keys.
+- **`spec` subpackage is the single source of truth for wire constants**:
+  `github.com/gmb-eudi/go-statuslist/spec` holds the draft-pinned CWT claim
+  keys, the COSE `typ` header label, and the media-type strings
+  (`spec.Draft`, `spec.ClaimStatusList`, `spec.ClaimTTL`, `spec.HeaderTyp`,
+  `spec.MediaStatusListJWT`, `spec.MediaStatusListCWT`). `token.go` imports
+  `spec` for the `typ`/media-type constants used in the type check; the CWT
+  claim-key values live as hardcoded integers in `cwt.go`'s CBOR struct tags
+  (Go struct tags can't reference named constants directly) and are pinned to
+  the `spec` constants by `spec_guard_test.go`, which fails if the two drift.
+  Either way an interoperating issuer can import `spec` and stay aligned
+  without pulling in verification logic.
+- **The Attestation Revocation List mechanism is experimental.** Its wire
+  format is defined by the Commission TS referenced by ARF VCR_11, which is
+  not yet published/vendored; this library only *hardens* the path — it fails
+  closed (`ErrMalformed`) on an unrecognized shape, including a present
+  `identifier_list` wrapper with no `ids` member — rather than defining or
+  guaranteeing the real format. Treat it as non-production until the VCR_11 TS
+  lands and the shape is verified against it.
 - **Hardened parsing**: untrusted CBOR is decoded with a bounded `DecMode`
   (nesting/size caps, duplicate-key reject, indefinite-length and tags
   forbidden); zlib inflation is capped to bound memory against decompression
@@ -234,20 +269,24 @@ bit widths and outcome enums — **never** a credential attribute value.
 
 ## Specification conformance and open items
 
-Implemented against `draft-ietf-oauth-status-list` (Token Status List, JWT + CWT),
+Implemented against `draft-ietf-oauth-status-list-12` (Token Status List, JWT + CWT),
 RFC 7515 (JWS), RFC 9052 / RFC 8392 (COSE_Sign1 / CWT), RFC 1950/1951 (zlib), and
-ARF 2.9 Topic 7 (VCR_01/02/11/13). See [`SPECREFS.md`](SPECREFS.md) for pinned
+ARF 2.9 Topic 7 (VCR_01/11/12/13). See [`SPECREFS.md`](SPECREFS.md) for pinned
 versions.
 
 Pre-v1 caveats, tracked in `SPECREFS.md`:
 
-- The status-list draft is not yet vendored; the CWT private claim keys used
-  (`status_list` = 65533, `ttl` = 65534, `typ` header label 16) must be
-  confirmed against the pinned draft.
+- The status-list draft *text* is not yet vendored under `references/`. The
+  CWT private claim keys used (`status_list` = 65533, `ttl` = 65534, `typ`
+  header label 16, see the `spec` subpackage) are **confirmed against the EU
+  Statium reference verifier libraries** (`references/eu-statuslist/eudi-lib-kmp-statium-main`,
+  `references/eu-statuslist/eudi-lib-ios-statium-swift-main`); cross-check
+  against the draft text itself once it is vendored.
 - The **Attestation Revocation List wire format** (payload `sub`/`iat`/`exp`/`ttl`
   + `identifier_list.ids`, CBOR private claim key 65532) is a documented interim
-  choice; the Commission TS referenced by ARF VCR_11 is not yet vendored and the
-  shape must be verified before v1.
+  choice, **experimental** and non-production; the Commission TS referenced by
+  ARF VCR_11 is not yet vendored and the shape must be verified before v1. This
+  library only guarantees it fails closed on an unrecognized shape.
 
 **Status: pre-v1.** The public API is not frozen before an OIDF/interoperability
 conformance pass.

@@ -19,4 +19,11 @@ var (
 	ErrDecompress       = errors.New("statuslist: status list decompression failed")
 	ErrDecompressTooBig = errors.New("statuslist: decompressed status list exceeds size cap")
 	ErrExpired          = errors.New("statuslist: status list token expired beyond MaxStale")
+	// ErrWrongType is returned when a Status List Token's `typ` (JOSE header /
+	// COSE label 16) is absent or not the expected status-list media type
+	// (draft §5.1/§5.2). Fail closed.
+	ErrWrongType = errors.New("statuslist: wrong or missing typ")
+	// ErrIssuedInFuture is returned when a token's iat is later than now+ClockSkew
+	// (draft §5 / RFC 8392 iat). Fail closed.
+	ErrIssuedInFuture = errors.New("statuslist: token issued in the future")
 )

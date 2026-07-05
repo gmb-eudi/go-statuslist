@@ -116,6 +116,69 @@ func TestIdentifierListEmptyIsValid(t *testing.T) {
 	}
 }
 
+// A validly-signed token whose identifier_list wrapper IS present but is the
+// wrong shape — a flat `{"id": status}` map with no "ids" member, as the
+// EU/GO issuer's format ships — must fail closed rather than decode to an
+// empty revoked-set (which would silently report StatusValid for every id,
+// unconditionally, defeating the revocation check). T-04.5/A4.
+func TestIdentifierListWrongShapeWrapperFailClosed(t *testing.T) {
+	ti := newTestIssuer(t)
+	t.Run("jwt", func(t *testing.T) {
+		raw := ti.rawJWT(t, map[string]any{
+			"sub":             idListURI,
+			"iat":             int64(1_700_000_000),
+			"identifier_list": map[string]any{"0": 1, "5": 1}, // a MAP, no "ids" key
+		})
+		c, _ := checkerFor(raw)
+		st, _, err := c.Check(context.Background(), sl.CheckInput{
+			Ref: idRef("5"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+		})
+		if !errors.Is(err, sl.ErrMalformed) {
+			t.Fatalf("err = %v, want ErrMalformed", err)
+		}
+		if st != sl.StatusUnknown {
+			t.Fatalf("st = %v, want StatusUnknown (must NOT be StatusValid)", st)
+		}
+	})
+	t.Run("cwt", func(t *testing.T) {
+		raw := ti.rawCWT(t, map[int64]any{
+			2:     idListURI,
+			6:     int64(1_700_000_000),
+			65532: map[string]any{"0": 1}, // wrapper present, no "ids" key
+		})
+		c, _ := checkerFor(raw)
+		st, _, err := c.Check(context.Background(), sl.CheckInput{
+			Ref: idRef("0"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+		})
+		if !errors.Is(err, sl.ErrMalformed) {
+			t.Fatalf("err = %v, want ErrMalformed", err)
+		}
+		if st != sl.StatusUnknown {
+			t.Fatalf("st = %v, want StatusUnknown (must NOT be StatusValid)", st)
+		}
+	})
+	// EU shape variant: ids live under a different claim key (65533) entirely,
+	// leaving 65532 absent — also fails closed, via the p.IdentifierList == nil
+	// half of the guard.
+	t.Run("cwt/wrapper key entirely absent", func(t *testing.T) {
+		raw := ti.rawCWT(t, map[int64]any{
+			2:     idListURI,
+			6:     int64(1_700_000_000),
+			65533: map[string]any{"0": 1}, // wrong claim key; 65532 is absent
+		})
+		c, _ := checkerFor(raw)
+		st, _, err := c.Check(context.Background(), sl.CheckInput{
+			Ref: idRef("0"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+		})
+		if !errors.Is(err, sl.ErrMalformed) {
+			t.Fatalf("err = %v, want ErrMalformed", err)
+		}
+		if st != sl.StatusUnknown {
+			t.Fatalf("st = %v, want StatusUnknown (must NOT be StatusValid)", st)
+		}
+	})
+}
+
 // A sub mismatch under explicit fail-open is skipped, not errored, and never
 // reported as a real status — the identifier-list analogue of Task 4's
 // TestSubBindingFailOpen.

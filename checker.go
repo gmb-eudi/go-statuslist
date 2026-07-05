@@ -46,6 +46,7 @@ type Checker struct {
 	cache           Cache
 	now             func() time.Time
 	maxDecompressed int
+	clockSkew       time.Duration
 }
 
 // Option configures a Checker.
@@ -67,6 +68,18 @@ func WithMaxDecompressed(n int) Option {
 	return func(c *Checker) {
 		if n > 0 {
 			c.maxDecompressed = n
+		}
+	}
+}
+
+// WithClockSkew tolerates a clock difference between issuer and verifier when
+// checking iat (not-in-future) and exp (draft §5). It is distinct from
+// Policy.MaxStale, which is a deliberate staleness grace beyond exp; the two
+// compose. Values < 0 are ignored.
+func WithClockSkew(d time.Duration) Option {
+	return func(c *Checker) {
+		if d >= 0 {
+			c.clockSkew = d
 		}
 	}
 }
@@ -161,18 +174,22 @@ func (c *Checker) maybeCache(uri string, raw []byte, ttl, exp int64, fromCache b
 	}
 }
 
-// applyFreshness enforces the token's exp against the clock with a MaxStale
-// grace. exp is the token's own expiry (Token Status List §5); MaxStale is the
-// per-client grace during which a just-expired list is still accepted (marked
-// Stale in Provenance). Past exp+MaxStale the list is unavailable.
-func (c *Checker) applyFreshness(exp int64, p Policy, prov *Provenance) error {
+// applyFreshness enforces the token's iat (not issued in the future, RFC 8392)
+// and exp (draft §5) against the clock. ClockSkew tolerates clock differences on
+// both; Policy.MaxStale is an additional deliberate grace beyond exp (within the
+// grace, prov.Stale=true; past exp+MaxStale+skew, ErrExpired). exp==0 ⇒ no
+// token-level expiry (ttl still bounds caching, Task 7); iat==0 ⇒ no iat check.
+func (c *Checker) applyFreshness(iat, exp int64, p Policy, prov *Provenance) error {
+	now := c.now()
+	if iat != 0 && time.Unix(iat, 0).After(now.Add(c.clockSkew)) {
+		return fmt.Errorf("%w: iat ahead of now+skew", ErrIssuedInFuture)
+	}
 	if exp == 0 {
-		return nil // no exp ⇒ no token-level expiry (ttl still bounds caching, Task 7)
+		return nil
 	}
 	expTime := time.Unix(exp, 0)
-	now := c.now()
-	if now.After(expTime.Add(p.MaxStale)) {
-		return fmt.Errorf("%w: exp+MaxStale elapsed", ErrExpired)
+	if now.After(expTime.Add(p.MaxStale).Add(c.clockSkew)) {
+		return fmt.Errorf("%w: exp+MaxStale+skew elapsed", ErrExpired)
 	}
 	if now.After(expTime) {
 		prov.Stale = true

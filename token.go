@@ -10,6 +10,7 @@ import (
 	"io"
 
 	eudicrypto "github.com/gmb-eudi/go-eudi-crypto"
+	"github.com/gmb-eudi/go-statuslist/spec"
 )
 
 // checkTokenStatusList implements the IETF Token Status List mechanism
@@ -43,7 +44,7 @@ func (c *Checker) checkTokenStatusList(ctx context.Context, in CheckInput, prov 
 	if claims.Sub != in.Ref.URI {
 		return c.failClosed(in.Policy, prov, fmt.Errorf("%w: token sub=%q ref uri=%q", ErrSubMismatch, claims.Sub, in.Ref.URI))
 	}
-	if err := c.applyFreshness(claims.Exp, in.Policy, &prov); err != nil {
+	if err := c.applyFreshness(claims.Iat, claims.Exp, in.Policy, &prov); err != nil {
 		return c.failClosed(in.Policy, prov, err)
 	}
 	c.maybeCache(in.Ref.URI, raw, claims.TTL, claims.Exp, prov.FromCache)
@@ -86,7 +87,12 @@ func (c *Checker) load(ctx context.Context, uri string) (raw []byte, fromCache b
 
 // verifyToken resolves the issuer key and verifies the Status List Token
 // signature via go-eudi-crypto. It returns the verified payload and a format
-// tag ("jwt"/"cwt").
+// tag ("jwt"/"cwt"). It is SHARED by checkTokenStatusList and
+// checkIdentifierList (ARF Identifier List / ARL): the `typ` check (draft
+// §5.1/§5.2, fail closed per hard rule 7) therefore only applies when
+// in.Ref.Kind == RefTokenStatusList — Identifier List tokens carry a
+// different, currently unvalidated `typ` (identifierlist+jwt /
+// application/identifierlist+cwt; de-scoped here).
 func (c *Checker) verifyToken(ctx context.Context, in CheckInput, raw []byte) (payload []byte, format string, err error) {
 	if in.IssuerKeyResolver == nil {
 		return nil, "", fmt.Errorf("%w: no resolver supplied", ErrKeyUnresolved)
@@ -97,18 +103,50 @@ func (c *Checker) verifyToken(ctx context.Context, in CheckInput, raw []byte) (p
 	}
 	if resolveFormat(in.Ref.Format, raw) == FormatJWT {
 		// Token Status List §5.1: statuslist+jwt, verified as a compact JWS.
-		p, _, verr := eudicrypto.VerifyJWS(raw, key)
+		p, hdr, verr := eudicrypto.VerifyJWS(raw, key)
 		if verr != nil {
 			return nil, "jwt", fmt.Errorf("%w: %v", ErrVerify, verr)
+		}
+		if in.Ref.Kind == RefTokenStatusList {
+			if terr := ensureTypJWT(hdr); terr != nil {
+				return nil, "jwt", terr
+			}
 		}
 		return p, "jwt", nil
 	}
 	// Token Status List §5.2: application/statuslist+cwt, verified as COSE_Sign1.
-	p, _, verr := eudicrypto.VerifyCOSESign1(raw, key)
+	p, hdr, verr := eudicrypto.VerifyCOSESign1(raw, key)
 	if verr != nil {
 		return nil, "cwt", fmt.Errorf("%w: %v", ErrVerify, verr)
 	}
+	if in.Ref.Kind == RefTokenStatusList {
+		if terr := ensureTypCWT(hdr); terr != nil {
+			return nil, "cwt", terr
+		}
+	}
 	return p, "cwt", nil
+}
+
+// ensureTypJWT enforces the JOSE `typ` header (draft §5.1: "statuslist+jwt").
+// typ is REQUIRED for a status list token (fail closed) — a token of another
+// type must never be accepted for a status-list reference even if its signature
+// and sub bind.
+func ensureTypJWT(hdr eudicrypto.Header) error {
+	t, _ := hdr["typ"].(string)
+	if t != spec.MediaStatusListJWT {
+		return fmt.Errorf("%w: jwt typ=%q", ErrWrongType, t)
+	}
+	return nil
+}
+
+// ensureTypCWT enforces the COSE `typ` header (label 16, RFC 9596; draft §5.2:
+// "application/statuslist+cwt"). Required (fail closed).
+func ensureTypCWT(hdr eudicrypto.COSEHeader) error {
+	t, _ := hdr[spec.HeaderTyp].(string)
+	if t != spec.MediaStatusListCWT {
+		return fmt.Errorf("%w: cwt typ=%q", ErrWrongType, t)
+	}
+	return nil
 }
 
 // resolveFormat honours an explicit StatusRef.Format, else sniffs: a compact

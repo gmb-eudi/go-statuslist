@@ -28,11 +28,15 @@ func mustDecMode() cbor.DecMode {
 }
 
 // cwtPayload mirrors the CBOR Status List Token claims (Token Status List §5.2).
-// Standard CWT claim keys: sub=2, exp=4, iat=6 (RFC 8392). FLAG: the two
-// private claim keys status_list=65533 and ttl=65534, and the CWT typ header
-// label 16, MUST be verified against the pinned draft (SPECREFS.md) once it is
-// vendored under references/. If issuers wrap the claims set in the CWT CBOR
-// tag 61 (RFC 8392), relax TagsMd or strip the tag — verify against the draft.
+// Standard CWT claim keys: sub=2, exp=4, iat=6 (RFC 8392). The two private claim
+// keys status_list=65533 and ttl=65534, and the CWT typ header label 16 (see the
+// spec subpackage), are CONFIRMED against the EU Statium reference verifier
+// libraries (references/eu-statuslist/eudi-lib-kmp-statium-main and
+// .../eudi-lib-ios-statium-swift-main), which target draft-10/12 and use the
+// same values; the IETF draft text itself is not yet vendored under references/
+// (SPECREFS.md) — cross-check against it as the primary source once available.
+// If issuers wrap the claims set in the CWT CBOR tag 61 (RFC 8392), relax TagsMd
+// or strip the tag — verify against the draft.
 type cwtPayload struct {
 	Sub        string        `cbor:"2,keyasint"`
 	Exp        *int64        `cbor:"4,keyasint"`
