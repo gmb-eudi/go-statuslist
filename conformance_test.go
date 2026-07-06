@@ -35,7 +35,7 @@ func TestConformantASLTokenJWT(t *testing.T) {
 	st, prov, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               tokenRef(0),
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if err != nil {
 		t.Fatalf("index 0: err = %v, want nil", err)
@@ -50,7 +50,7 @@ func TestConformantASLTokenJWT(t *testing.T) {
 	st, _, err = c.Check(context.Background(), sl.CheckInput{
 		Ref:               tokenRef(1),
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if err != nil {
 		t.Fatalf("index 1: err = %v, want nil", err)
@@ -80,7 +80,7 @@ func TestConformantASLTokenCWT(t *testing.T) {
 	st, prov, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               tokenRef(0),
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if err != nil {
 		t.Fatalf("index 0: err = %v, want nil", err)
@@ -95,7 +95,7 @@ func TestConformantASLTokenCWT(t *testing.T) {
 	st, _, err = c.Check(context.Background(), sl.CheckInput{
 		Ref:               tokenRef(1),
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if err != nil {
 		t.Fatalf("index 1: err = %v, want nil", err)
@@ -119,7 +119,7 @@ func TestIdentifierListEmptyCWTIsValid(t *testing.T) {
 	st, _, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               sl.StatusRef{Kind: sl.RefIdentifierList, URI: idListURI, ID: "5"},
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if err != nil {
 		t.Fatalf("err = %v, want nil", err)

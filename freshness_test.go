@@ -25,7 +25,7 @@ func TestIatInFutureNoSkew(t *testing.T) {
 	_, _, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               tokenRef(0),
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if !errors.Is(err, sl.ErrIssuedInFuture) {
 		t.Fatalf("err = %v, want ErrIssuedInFuture", err)
@@ -42,7 +42,7 @@ func TestIatWithinSkewPasses(t *testing.T) {
 	st, _, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               tokenRef(0),
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if err != nil {
 		t.Fatalf("err = %v, want nil", err)
@@ -95,7 +95,7 @@ func TestIatMissingFailsClosed(t *testing.T) {
 	st, prov, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               tokenRef(0),
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if !errors.Is(err, sl.ErrMalformed) {
 		t.Fatalf("err = %v, want ErrMalformed", err)
@@ -115,7 +115,7 @@ func TestIatInFutureIdentifierList(t *testing.T) {
 	_, _, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               sl.StatusRef{Kind: sl.RefIdentifierList, URI: listURI, ID: "5"},
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if !errors.Is(err, sl.ErrIssuedInFuture) {
 		t.Fatalf("err = %v, want ErrIssuedInFuture", err)

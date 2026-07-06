@@ -29,7 +29,7 @@ func TestTokenStatusListBitWidthsCWT(t *testing.T) {
 				st, prov, err := c.Check(context.Background(), sl.CheckInput{
 					Ref:               tokenRef(idx),
 					IssuerKeyResolver: ti.resolver(),
-					Policy:            sl.Policy{FailClosed: true},
+					Policy:            sl.Policy{AllowFailOpen: false},
 				})
 				if err != nil {
 					t.Fatalf("idx %d: %v", idx, err)
@@ -74,7 +74,7 @@ func TestTokenStatusListErrorsCWT(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			c, _ := checkerFor(tc.tok, tc.opt...)
 			_, _, err := c.Check(context.Background(), sl.CheckInput{
-				Ref: tc.ref, IssuerKeyResolver: tc.res, Policy: sl.Policy{FailClosed: true},
+				Ref: tc.ref, IssuerKeyResolver: tc.res, Policy: sl.Policy{AllowFailOpen: false},
 			})
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("err = %v, want %v", err, tc.want)
@@ -91,7 +91,7 @@ func TestFormatSniffAndOverride(t *testing.T) {
 	// FormatAuto (default zero value) must resolve to CWT and read INVALID at idx 1.
 	st, prov, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               sl.StatusRef{Kind: sl.RefTokenStatusList, URI: listURI, Index: 1, Format: sl.FormatAuto},
-		IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+		IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 	})
 	if err != nil || st != sl.StatusRevoked || prov.Format != "cwt" {
 		t.Fatalf("auto-sniff: st=%v prov=%+v err=%v", st, prov, err)
@@ -99,7 +99,7 @@ func TestFormatSniffAndOverride(t *testing.T) {
 	// Explicit FormatJWT on a CWT body must fail verification (not panic).
 	_, _, err = c.Check(context.Background(), sl.CheckInput{
 		Ref:               sl.StatusRef{Kind: sl.RefTokenStatusList, URI: listURI, Index: 1, Format: sl.FormatJWT},
-		IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+		IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 	})
 	if err == nil {
 		t.Fatal("CWT body verified as JWT unexpectedly succeeded")

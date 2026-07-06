@@ -78,7 +78,7 @@ func main() {
 			Index: 42,
 		},
 		IssuerKeyResolver:  resolve,
-		Policy:             statuslist.Policy{FailClosed: true},
+		Policy:             statuslist.Policy{}, // zero value = fail-closed
 		CredentialValidity: 90 * 24 * time.Hour, // remaining validity of the credential being checked
 	})
 	// err != nil under a fail-closed policy when the status can't be established.
@@ -124,26 +124,21 @@ bit width, out-of-range index, or expiry beyond the stale grace):
 
 ```go
 type Policy struct {
-	FailClosed bool          // true  → inconclusive status returns a typed error
-	MaxStale   time.Duration // grace beyond a token's exp (see below)
+	AllowFailOpen bool          // true → inconclusive status is a recorded skip, not an error
+	MaxStale      time.Duration // grace beyond a token's exp (see below)
 }
 ```
 
-- **`Policy{FailClosed: true}`** — an inconclusive result returns
+- **`Policy{}` (the zero value)** — an inconclusive result returns
   `StatusUnknown` **and a non-nil typed error** (`Outcome: unavailable`). This is
-  the safe posture and what production callers should use.
-- **`Policy{FailClosed: false}`** — an inconclusive result is a recorded
+  the safe posture, and callers get it automatically without opting into
+  anything (hard rule 7).
+- **`Policy{AllowFailOpen: true}`** — an inconclusive result is a recorded
   *skip*: `StatusUnknown`, **no error**, `Outcome: skipped-fail-open`,
   `FailOpen: true`. This is a deliberate per-client opt-out and it is surfaced in
   the verification report. Even under fail-open, a `sub` mismatch or a revoked
   entry is **never** reported as a real status — the substitution/revocation
   defences hold.
-
-> ⚠️ **The `Policy` zero value is fail-open.** `FailClosed`'s Go zero value is
-> `false`, so a `Policy{}` (or an unset field) skips fail-closed enforcement.
-> Always set `FailClosed: true` explicitly for the safe posture. (This ergonomics
-> wrinkle is under review for pre-v1; the field may be reshaped so the zero value
-> is the safe one.)
 
 ## Short-lived exemption
 
@@ -174,7 +169,7 @@ type Cache interface {
 - **`Policy.MaxStale`** is the grace beyond a token's own `exp` during which a
   served list is still accepted (marked `Stale: true` in provenance). Past
   `exp + MaxStale` the list is treated as unavailable (`ErrExpired`, honouring
-  `FailClosed`).
+  `AllowFailOpen`).
 
 ## Construction options
 

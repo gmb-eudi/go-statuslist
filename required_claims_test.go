@@ -29,7 +29,7 @@ func TestSubMissingFailsClosedJWT(t *testing.T) {
 	st, prov, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               tokenRef(0),
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if !errors.Is(err, sl.ErrMalformed) {
 		t.Fatalf("err = %v, want ErrMalformed", err)
@@ -47,7 +47,7 @@ func TestSubMissingFailsClosedCWT(t *testing.T) {
 	st, prov, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               tokenRef(0),
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if !errors.Is(err, sl.ErrMalformed) {
 		t.Fatalf("err = %v, want ErrMalformed", err)
@@ -67,7 +67,7 @@ func TestIatMissingFailsClosedCWT(t *testing.T) {
 	st, prov, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               tokenRef(0),
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if !errors.Is(err, sl.ErrMalformed) {
 		t.Fatalf("err = %v, want ErrMalformed", err)

@@ -23,7 +23,7 @@ func TestShortLivedSkip(t *testing.T) {
 
 	st, prov, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:                tokenRef(1),
-		Policy:             sl.Policy{FailClosed: true},
+		Policy:             sl.Policy{AllowFailOpen: false},
 		CredentialValidity: time.Hour, // < 24h
 	})
 	if err != nil {
@@ -44,7 +44,7 @@ func TestNotShortLivedIsChecked(t *testing.T) {
 	c, f := checkerFor(tok, fixedClock())
 	st, _, err := c.Check(context.Background(), sl.CheckInput{
 		Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(),
-		Policy: sl.Policy{FailClosed: true}, CredentialValidity: 48 * time.Hour,
+		Policy: sl.Policy{AllowFailOpen: false}, CredentialValidity: 48 * time.Hour,
 	})
 	if err != nil || st != sl.StatusRevoked {
 		t.Fatalf("st=%v err=%v, want StatusRevoked", st, err)
@@ -60,7 +60,7 @@ func TestFetchFailurePolicyBranches(t *testing.T) {
 	t.Run("fail-closed", func(t *testing.T) {
 		c := sl.NewChecker(&fakeFetcher{err: errors.New("boom")}, nil, fixedClock())
 		_, prov, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: tokenRef(0), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: tokenRef(0), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrFetch) || prov.Outcome != sl.OutcomeUnavailable {
 			t.Fatalf("err=%v prov=%+v", err, prov)
@@ -69,7 +69,7 @@ func TestFetchFailurePolicyBranches(t *testing.T) {
 	t.Run("fail-open", func(t *testing.T) {
 		c := sl.NewChecker(&fakeFetcher{err: errors.New("boom")}, nil, fixedClock())
 		st, prov, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: tokenRef(0), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: false},
+			Ref: tokenRef(0), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: true},
 		})
 		if err != nil || st != sl.StatusUnknown || !prov.FailOpen || prov.Outcome != sl.OutcomeSkippedFailOpen {
 			t.Fatalf("st=%v prov=%+v err=%v", st, prov, err)
@@ -88,7 +88,7 @@ func TestMaxStale(t *testing.T) {
 		c, _ := checkerFor(tok, fixedClock())
 		st, prov, err := c.Check(context.Background(), sl.CheckInput{
 			Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(),
-			Policy: sl.Policy{FailClosed: true, MaxStale: time.Hour},
+			Policy: sl.Policy{AllowFailOpen: false, MaxStale: time.Hour},
 		})
 		if err != nil || st != sl.StatusRevoked {
 			t.Fatalf("st=%v err=%v, want StatusRevoked", st, err)
@@ -104,7 +104,7 @@ func TestMaxStale(t *testing.T) {
 		c, _ := checkerFor(tok, fixedClock())
 		_, prov, err := c.Check(context.Background(), sl.CheckInput{
 			Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(),
-			Policy: sl.Policy{FailClosed: true, MaxStale: time.Hour},
+			Policy: sl.Policy{AllowFailOpen: false, MaxStale: time.Hour},
 		})
 		if !errors.Is(err, sl.ErrExpired) || prov.Outcome != sl.OutcomeUnavailable {
 			t.Fatalf("err=%v prov=%+v, want ErrExpired / unavailable", err, prov)
@@ -116,7 +116,7 @@ func TestMaxStale(t *testing.T) {
 			exp: epoch.Add(time.Hour).Unix(), bits: 1, statuses: statuses})
 		c, _ := checkerFor(tok, fixedClock())
 		st, prov, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if err != nil || st != sl.StatusRevoked || prov.Stale {
 			t.Fatalf("st=%v prov=%+v err=%v", st, prov, err)

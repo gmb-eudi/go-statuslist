@@ -63,7 +63,7 @@ const (
 	OutcomeChecked           Outcome = "checked"             // list fetched, verified, entry read
 	OutcomeCached            Outcome = "checked-cached"      // served from a fresh cache entry
 	OutcomeSkippedShortLived Outcome = "skipped-short-lived" // ARF Topic 7 VCR_01 <24h exemption
-	OutcomeSkippedFailOpen   Outcome = "skipped-fail-open"   // inconclusive + explicit fail-open flag (FailClosed=false)
+	OutcomeSkippedFailOpen   Outcome = "skipped-fail-open"   // inconclusive + explicit fail-open flag (AllowFailOpen=true)
 	OutcomeUnavailable       Outcome = "unavailable"         // inconclusive + fail-closed ⇒ error
 )
 
@@ -99,12 +99,13 @@ type StatusRef struct {
 	Format TokenFormat // encoding hint for the fetched token; FormatAuto sniffs
 }
 
-// Policy is the per-client revocation policy (hard rule 7). FailClosed is the
-// explicit fail-open flag: FailClosed=false is a deliberate per-client opt-out
-// that is recorded in Provenance and shown in the verification report.
+// Policy is the per-client revocation policy (hard rule 7). The zero value is
+// fail-closed, matching hard rule 7's default; AllowFailOpen is the explicit
+// per-client opt-out that is recorded in Provenance and shown in the
+// verification report.
 type Policy struct {
-	FailClosed bool          // true: inconclusive status ⇒ error; false: ⇒ StatusUnknown, recorded fail-open
-	MaxStale   time.Duration // grace beyond a token's exp during which a served list is still accepted (marked Stale)
+	AllowFailOpen bool          // false (zero value): inconclusive status ⇒ error; true: ⇒ StatusUnknown, recorded fail-open
+	MaxStale      time.Duration // grace beyond a token's exp during which a served list is still accepted (marked Stale)
 }
 
 // Provenance records how a verdict was reached; identifiers and outcomes only,

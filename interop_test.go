@@ -90,7 +90,7 @@ func TestInteropStatusListGoFixtures(t *testing.T) {
 						Format: FormatAuto, // sniff JWT (compact JWS) vs CWT (CBOR)
 					},
 					IssuerKeyResolver: resolve,
-					Policy:            Policy{FailClosed: true},
+					Policy:            Policy{AllowFailOpen: false},
 				})
 				if err != nil {
 					t.Fatalf("index %d: Check returned error: %v", want.index, err)

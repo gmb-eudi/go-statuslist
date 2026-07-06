@@ -37,7 +37,7 @@ func TestCacheHitAvoidsFetch(t *testing.T) {
 	c := sl.NewChecker(f, cache, fixedClock())
 
 	st, prov, err := c.Check(context.Background(), sl.CheckInput{
-		Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+		Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 	})
 	if err != nil || st != sl.StatusRevoked {
 		t.Fatalf("st=%v err=%v, want StatusRevoked", st, err)
@@ -77,7 +77,7 @@ func TestCacheMissFetchesAndCaches(t *testing.T) {
 			c := sl.NewChecker(f, cache, fixedClock())
 			st, prov, err := c.Check(context.Background(), sl.CheckInput{
 				Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(),
-				Policy: sl.Policy{FailClosed: true, MaxStale: 2 * time.Hour},
+				Policy: sl.Policy{AllowFailOpen: false, MaxStale: 2 * time.Hour},
 			})
 			if err != nil || st != sl.StatusRevoked {
 				t.Fatalf("st=%v err=%v", st, err)
@@ -111,7 +111,7 @@ func TestRefetchFailureHonorsPolicy(t *testing.T) {
 	t.Run("fail-closed", func(t *testing.T) {
 		c := sl.NewChecker(&fakeFetcher{err: errors.New("down")}, &fakeCache{getOK: false}, fixedClock())
 		_, prov, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrFetch) || prov.Outcome != sl.OutcomeUnavailable {
 			t.Fatalf("err=%v prov=%+v", err, prov)
@@ -120,7 +120,7 @@ func TestRefetchFailureHonorsPolicy(t *testing.T) {
 	t.Run("fail-open", func(t *testing.T) {
 		c := sl.NewChecker(&fakeFetcher{err: errors.New("down")}, &fakeCache{getOK: false}, fixedClock())
 		st, prov, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: false},
+			Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: true},
 		})
 		if err != nil || st != sl.StatusUnknown || !prov.FailOpen {
 			t.Fatalf("st=%v prov=%+v err=%v", st, prov, err)
@@ -136,7 +136,7 @@ func TestIdentifierListCaches(t *testing.T) {
 	c := sl.NewChecker(&fakeFetcher{body: tok}, cache, fixedClock())
 	st, _, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               sl.StatusRef{Kind: sl.RefIdentifierList, URI: idListURI, ID: "urn:cred:aaa"},
-		IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+		IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 	})
 	if err != nil || st != sl.StatusRevoked {
 		t.Fatalf("st=%v err=%v", st, err)

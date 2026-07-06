@@ -101,7 +101,7 @@ func NewChecker(fetcher Fetcher, cache Cache, opts ...Option) *Checker {
 // Check resolves the revocation status of the referenced credential. Fail
 // closed by default (hard rule 7): an inconclusive result returns
 // StatusUnknown with a non-nil error unless the client policy explicitly opts
-// into fail-open (Policy.FailClosed == false).
+// into fail-open (Policy.AllowFailOpen == true).
 //
 // The ARF Topic 7 VCR_01 short-lived exemption is applied first, before any
 // fetch (Task 6).
@@ -131,10 +131,11 @@ func (c *Checker) Check(ctx context.Context, in CheckInput) (Status, Provenance,
 }
 
 // failClosed applies the policy to an inconclusive result. Fail-closed
-// (default) surfaces the cause; the explicit per-client fail-open flag
-// (FailClosed == false) records the skip in Provenance and returns no error.
+// (default, the zero value) surfaces the cause; the explicit per-client
+// fail-open flag (AllowFailOpen == true) records the skip in Provenance and
+// returns no error.
 func (c *Checker) failClosed(p Policy, prov Provenance, cause error) (Status, Provenance, error) {
-	if p.FailClosed {
+	if !p.AllowFailOpen {
 		prov.Outcome = OutcomeUnavailable
 		return StatusUnknown, prov, cause
 	}

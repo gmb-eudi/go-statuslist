@@ -23,7 +23,7 @@ func TestIdentifierList(t *testing.T) {
 		t.Run(name+"/listed is revoked", func(t *testing.T) {
 			c, _ := checkerFor(tok)
 			st, prov, err := c.Check(context.Background(), sl.CheckInput{
-				Ref: idRef("urn:cred:bbb"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+				Ref: idRef("urn:cred:bbb"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -38,7 +38,7 @@ func TestIdentifierList(t *testing.T) {
 		t.Run(name+"/absent is valid", func(t *testing.T) {
 			c, _ := checkerFor(tok)
 			st, _, err := c.Check(context.Background(), sl.CheckInput{
-				Ref: idRef("urn:cred:zzz"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+				Ref: idRef("urn:cred:zzz"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 			})
 			if err != nil || st != sl.StatusValid {
 				t.Fatalf("st = %v err = %v, want StatusValid", st, err)
@@ -53,7 +53,7 @@ func TestIdentifierListSubBinding(t *testing.T) {
 	tok := ti.idJWT(t, idListOpts{sub: "https://issuer.example/revlists/OTHER", iat: 1_700_000_000, ids: []string{"urn:cred:aaa"}})
 	c, _ := checkerFor(tok)
 	_, _, err := c.Check(context.Background(), sl.CheckInput{
-		Ref: idRef("urn:cred:aaa"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+		Ref: idRef("urn:cred:aaa"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 	})
 	if !errors.Is(err, sl.ErrSubMismatch) {
 		t.Fatalf("err = %v, want ErrSubMismatch", err)
@@ -66,7 +66,7 @@ func TestIdentifierListFailClosed(t *testing.T) {
 	tok := ti.idJWT(t, idListOpts{sub: idListURI, iat: 1_700_000_000, ids: []string{"urn:cred:aaa"}})
 	c, _ := checkerFor(tok)
 	_, _, err := c.Check(context.Background(), sl.CheckInput{
-		Ref: idRef("urn:cred:aaa"), IssuerKeyResolver: newTestIssuer(t).resolver(), Policy: sl.Policy{FailClosed: true},
+		Ref: idRef("urn:cred:aaa"), IssuerKeyResolver: newTestIssuer(t).resolver(), Policy: sl.Policy{AllowFailOpen: false},
 	})
 	if !errors.Is(err, sl.ErrVerify) {
 		t.Fatalf("err = %v, want ErrVerify", err)
@@ -83,7 +83,7 @@ func TestIdentifierListMissingWrapperFailClosed(t *testing.T) {
 		tok := ti.rawJWT(t, map[string]any{"sub": idListURI, "iat": 1_700_000_000})
 		c, _ := checkerFor(tok)
 		_, _, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: idRef("urn:cred:aaa"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: idRef("urn:cred:aaa"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrMalformed) {
 			t.Fatalf("err = %v, want ErrMalformed", err)
@@ -93,7 +93,7 @@ func TestIdentifierListMissingWrapperFailClosed(t *testing.T) {
 		tok := ti.rawCWT(t, map[int64]any{2: idListURI, 6: int64(1_700_000_000)})
 		c, _ := checkerFor(tok)
 		_, _, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: idRef("urn:cred:aaa"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: idRef("urn:cred:aaa"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrMalformed) {
 			t.Fatalf("err = %v, want ErrMalformed", err)
@@ -109,7 +109,7 @@ func TestIdentifierListEmptyIsValid(t *testing.T) {
 	tok := ti.idJWT(t, idListOpts{sub: idListURI, iat: 1_700_000_000, ids: []string{}})
 	c, _ := checkerFor(tok)
 	st, _, err := c.Check(context.Background(), sl.CheckInput{
-		Ref: idRef("urn:cred:anything"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+		Ref: idRef("urn:cred:anything"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 	})
 	if err != nil || st != sl.StatusValid {
 		t.Fatalf("st = %v err = %v, want StatusValid", st, err)
@@ -131,7 +131,7 @@ func TestIdentifierListWrongShapeWrapperFailClosed(t *testing.T) {
 		})
 		c, _ := checkerFor(raw)
 		st, _, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: idRef("5"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: idRef("5"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrMalformed) {
 			t.Fatalf("err = %v, want ErrMalformed", err)
@@ -148,7 +148,7 @@ func TestIdentifierListWrongShapeWrapperFailClosed(t *testing.T) {
 		})
 		c, _ := checkerFor(raw)
 		st, _, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: idRef("0"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: idRef("0"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrMalformed) {
 			t.Fatalf("err = %v, want ErrMalformed", err)
@@ -168,7 +168,7 @@ func TestIdentifierListWrongShapeWrapperFailClosed(t *testing.T) {
 		})
 		c, _ := checkerFor(raw)
 		st, _, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: idRef("0"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: idRef("0"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrMalformed) {
 			t.Fatalf("err = %v, want ErrMalformed", err)
@@ -187,7 +187,7 @@ func TestIdentifierListSubMismatchFailOpen(t *testing.T) {
 	tok := ti.idJWT(t, idListOpts{sub: "https://issuer.example/revlists/OTHER", iat: 1_700_000_000, ids: []string{"urn:cred:aaa"}})
 	c, _ := checkerFor(tok)
 	st, prov, err := c.Check(context.Background(), sl.CheckInput{
-		Ref: idRef("urn:cred:aaa"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: false},
+		Ref: idRef("urn:cred:aaa"), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: true},
 	})
 	if err != nil || st != sl.StatusUnknown || !prov.FailOpen {
 		t.Fatalf("st=%v prov=%+v err=%v", st, prov, err)

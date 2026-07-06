@@ -23,7 +23,7 @@ func TestSubBinding(t *testing.T) {
 			tok := build(t, tokenOpts{sub: "https://issuer.example/statuslists/OTHER", iat: 1_700_000_000, bits: 1, statuses: statuses})
 			c, _ := checkerFor(tok)
 			st, prov, err := c.Check(context.Background(), sl.CheckInput{
-				Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+				Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 			})
 			if !errors.Is(err, sl.ErrSubMismatch) {
 				t.Fatalf("err = %v, want ErrSubMismatch", err)
@@ -36,7 +36,7 @@ func TestSubBinding(t *testing.T) {
 			tok := build(t, tokenOpts{sub: listURI, iat: 1_700_000_000, bits: 1, statuses: statuses})
 			c, _ := checkerFor(tok)
 			st, _, err := c.Check(context.Background(), sl.CheckInput{
-				Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+				Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 			})
 			if err != nil || st != sl.StatusRevoked {
 				t.Fatalf("st=%v err=%v, want StatusRevoked", st, err)
@@ -52,7 +52,7 @@ func TestSubBindingFailOpen(t *testing.T) {
 	tok := ti.jwt(t, tokenOpts{sub: "https://issuer.example/OTHER", iat: 1_700_000_000, bits: 1, statuses: []int{0, 1}})
 	c, _ := checkerFor(tok)
 	st, prov, err := c.Check(context.Background(), sl.CheckInput{
-		Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: false},
+		Ref: tokenRef(1), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: true},
 	})
 	if err != nil || st != sl.StatusUnknown || !prov.FailOpen {
 		t.Fatalf("st=%v prov=%+v err=%v", st, prov, err)

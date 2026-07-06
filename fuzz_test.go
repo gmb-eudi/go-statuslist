@@ -27,7 +27,7 @@ func FuzzStatusListToken(f *testing.F) {
 		_, _, _ = c.Check(context.Background(), sl.CheckInput{
 			Ref:               tokenRef(3),
 			IssuerKeyResolver: ti.resolver(),
-			Policy:            sl.Policy{FailClosed: true},
+			Policy:            sl.Policy{AllowFailOpen: false},
 		})
 	})
 }

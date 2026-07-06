@@ -15,16 +15,17 @@ func TestNewCheckerNonNil(t *testing.T) {
 	}
 }
 
-// Fail-closed is the default posture; fail-open requires the explicit
-// per-client flag (Policy.FailClosed == false) and is recorded in Provenance
-// (hard rule 7). Exercised here via an unsupported ref kind so the test stays
-// valid for the whole WP (Task 2/5 never make RefKind(99) meaningful).
+// Fail-closed is the default posture (the Policy zero value); fail-open
+// requires the explicit per-client flag (Policy.AllowFailOpen == true) and is
+// recorded in Provenance (hard rule 7). Exercised here via an unsupported ref
+// kind so the test stays valid for the whole WP (Task 2/5 never make
+// RefKind(99) meaningful).
 func TestFailClosedPolicy(t *testing.T) {
 	clk := func() time.Time { return time.Unix(1_700_000_000, 0) }
 	c := sl.NewChecker(nil, nil, sl.WithClock(clk))
 	ref := sl.StatusRef{Kind: sl.RefKind(99), URI: "https://issuer.example/list/1", Index: 4}
 
-	st, prov, err := c.Check(context.Background(), sl.CheckInput{Ref: ref, Policy: sl.Policy{FailClosed: true}})
+	st, prov, err := c.Check(context.Background(), sl.CheckInput{Ref: ref, Policy: sl.Policy{AllowFailOpen: false}})
 	if !errors.Is(err, sl.ErrUnsupported) {
 		t.Fatalf("fail-closed err = %v, want ErrUnsupported", err)
 	}
@@ -35,7 +36,7 @@ func TestFailClosedPolicy(t *testing.T) {
 		t.Errorf("fail-closed prov = %+v, want Outcome=unavailable FailOpen=false", prov)
 	}
 
-	st, prov, err = c.Check(context.Background(), sl.CheckInput{Ref: ref, Policy: sl.Policy{FailClosed: false}})
+	st, prov, err = c.Check(context.Background(), sl.CheckInput{Ref: ref, Policy: sl.Policy{AllowFailOpen: true}})
 	if err != nil {
 		t.Fatalf("fail-open err = %v, want nil", err)
 	}

@@ -53,7 +53,7 @@ func TestTokenStatusListBitWidthsJWT(t *testing.T) {
 				st, prov, err := c.Check(context.Background(), sl.CheckInput{
 					Ref:               tokenRef(idx),
 					IssuerKeyResolver: ti.resolver(),
-					Policy:            sl.Policy{FailClosed: true},
+					Policy:            sl.Policy{AllowFailOpen: false},
 				})
 				if err != nil {
 					t.Fatalf("idx %d: %v", idx, err)
@@ -81,7 +81,7 @@ func TestTokenStatusListErrorsJWT(t *testing.T) {
 		tok := ti.jwt(t, tokenOpts{sub: listURI, iat: 1_700_000_000, bits: 1, statuses: make([]int, 8)})
 		c, _ := checkerFor(tok)
 		st, prov, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: tokenRef(9999), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: tokenRef(9999), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrIndexOutOfRange) {
 			t.Fatalf("err = %v, want ErrIndexOutOfRange", err)
@@ -95,7 +95,7 @@ func TestTokenStatusListErrorsJWT(t *testing.T) {
 		tok := ti.jwt(t, tokenOpts{sub: listURI, iat: 1_700_000_000, bits: 3, lst: deflate([]byte{0xFF})})
 		c, _ := checkerFor(tok)
 		_, _, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: tokenRef(0), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: tokenRef(0), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrUnknownBitWidth) {
 			t.Fatalf("err = %v, want ErrUnknownBitWidth", err)
@@ -107,7 +107,7 @@ func TestTokenStatusListErrorsJWT(t *testing.T) {
 		tok := ti.jwt(t, tokenOpts{sub: listURI, iat: 1_700_000_000, bits: 1, lst: bomb})
 		c, _ := checkerFor(tok, sl.WithMaxDecompressed(1<<20))
 		_, _, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: tokenRef(0), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: tokenRef(0), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrDecompressTooBig) {
 			t.Fatalf("err = %v, want ErrDecompressTooBig", err)
@@ -119,7 +119,7 @@ func TestTokenStatusListErrorsJWT(t *testing.T) {
 		other := newTestIssuer(t)
 		c, _ := checkerFor(tok)
 		_, _, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: tokenRef(0), IssuerKeyResolver: other.resolver(), Policy: sl.Policy{FailClosed: true},
+			Ref: tokenRef(0), IssuerKeyResolver: other.resolver(), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrVerify) {
 			t.Fatalf("err = %v, want ErrVerify", err)
@@ -130,7 +130,7 @@ func TestTokenStatusListErrorsJWT(t *testing.T) {
 		tok := ti.jwt(t, tokenOpts{sub: listURI, iat: 1_700_000_000, bits: 1, statuses: make([]int, 8)})
 		c, _ := checkerFor(tok)
 		_, _, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: tokenRef(0), Policy: sl.Policy{FailClosed: true},
+			Ref: tokenRef(0), Policy: sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrKeyUnresolved) {
 			t.Fatalf("err = %v, want ErrKeyUnresolved", err)
@@ -140,7 +140,7 @@ func TestTokenStatusListErrorsJWT(t *testing.T) {
 	t.Run("fetch failure honors fail-open", func(t *testing.T) {
 		c := sl.NewChecker(&fakeFetcher{err: errors.New("boom")}, nil)
 		st, prov, err := c.Check(context.Background(), sl.CheckInput{
-			Ref: tokenRef(0), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{FailClosed: false},
+			Ref: tokenRef(0), IssuerKeyResolver: ti.resolver(), Policy: sl.Policy{AllowFailOpen: true},
 		})
 		if err != nil {
 			t.Fatalf("fail-open err = %v", err)

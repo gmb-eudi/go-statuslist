@@ -68,7 +68,7 @@ func TestTypJWTWrongOrMissing(t *testing.T) {
 		_, _, err = c.Check(context.Background(), sl.CheckInput{
 			Ref:               tokenRef(0),
 			IssuerKeyResolver: ti.resolver(),
-			Policy:            sl.Policy{FailClosed: true},
+			Policy:            sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrWrongType) {
 			t.Fatalf("err = %v, want ErrWrongType", err)
@@ -86,7 +86,7 @@ func TestTypJWTWrongOrMissing(t *testing.T) {
 		_, _, err = c.Check(context.Background(), sl.CheckInput{
 			Ref:               tokenRef(0),
 			IssuerKeyResolver: ti.resolver(),
-			Policy:            sl.Policy{FailClosed: true},
+			Policy:            sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrWrongType) {
 			t.Fatalf("err = %v, want ErrWrongType", err)
@@ -108,7 +108,7 @@ func TestTypCWTWrongOrMissing(t *testing.T) {
 		_, _, err = c.Check(context.Background(), sl.CheckInput{
 			Ref:               tokenRef(0),
 			IssuerKeyResolver: ti.resolver(),
-			Policy:            sl.Policy{FailClosed: true},
+			Policy:            sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrWrongType) {
 			t.Fatalf("err = %v, want ErrWrongType", err)
@@ -126,7 +126,7 @@ func TestTypCWTWrongOrMissing(t *testing.T) {
 		_, _, err = c.Check(context.Background(), sl.CheckInput{
 			Ref:               tokenRef(0),
 			IssuerKeyResolver: ti.resolver(),
-			Policy:            sl.Policy{FailClosed: true},
+			Policy:            sl.Policy{AllowFailOpen: false},
 		})
 		if !errors.Is(err, sl.ErrWrongType) {
 			t.Fatalf("err = %v, want ErrWrongType", err)
@@ -144,7 +144,7 @@ func TestTypCorrectPasses(t *testing.T) {
 	st, _, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               tokenRef(0),
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if err != nil {
 		t.Fatalf("err = %v, want nil", err)
@@ -166,7 +166,7 @@ func TestTypNotValidatedForIdentifierList(t *testing.T) {
 	st, _, err := c.Check(context.Background(), sl.CheckInput{
 		Ref:               sl.StatusRef{Kind: sl.RefIdentifierList, URI: listURI, ID: "5"},
 		IssuerKeyResolver: ti.resolver(),
-		Policy:            sl.Policy{FailClosed: true},
+		Policy:            sl.Policy{AllowFailOpen: false},
 	})
 	if errors.Is(err, sl.ErrWrongType) {
 		t.Fatalf("err = %v, ARL path must not be typ-validated", err)
