@@ -10,22 +10,42 @@
 | Short-lived exemption origin | ETSI EN 319 411-1 v1.4.1 REV-6.2.4-03A (24h) |
 
 ## Open items (flagged to maintainers)
-- The CWT claim keys used in `cwt.go`/`spec/spec.go` (`status_list`=65533,
-  `ttl`=65534) and the CWT `typ` label (16 = "application/statuslist+cwt") are
-  **confirmed against the EU Statium reference verifier libraries**
+- The CWT/JWT claim keys used in `cwt.go`/`token.go`/`spec/spec.go` — the JWT
+  standard claims (`sub`, `iat`=6, `exp`=4) and the CBOR equivalents
+  (`sub`=2, `iat`=6, `exp`=4), plus the two private claim keys
+  (`status_list`=65533, `ttl`=65534), the CWT `typ` label (16) and both media
+  type strings (`statuslist+jwt` / `application/statuslist+cwt`) — are now
+  **confirmed directly against the vendored primary source**,
+  `references/statuslist-draft12.txt` (draft-ietf-oauth-status-list-12 §5.1 /
+  §5.2 / §14). The earlier EU Statium reference-verifier cross-check
   (`references/eu-statuslist/eudi-lib-kmp-statium-main`,
-  `references/eu-statuslist/eudi-lib-ios-statium-swift-main`), which target
-  Token Status List draft-10/12 and use the same values. The
-  `draft-ietf-oauth-status-list-12` **draft text itself is still not vendored**
-  under `references/` — vendor it when available and cross-check against it as
-  the primary source.
-- The Attestation Revocation List ("Identifier List") wire format is defined in
-  the Commission TS referenced by ARF VCR_11, which is not vendored. The
-  JSON/CBOR shape in `identifier.go` is a documented synthetic choice
-  (ADR-0007 governs the OSS packaging / synthetic test-vector approach, not the
-  wire format itself). The mechanism therefore stays **experimental**: this
-  library only hardens it to fail closed on an unrecognized shape (missing
-  `identifier_list.ids`); it must be verified against the VCR_11 TS before v1.
+  `references/eu-statuslist/eudi-lib-ios-statium-swift-main`) independently
+  agrees. This comparison also found and fixed a `sub`/`iat` required-claims gap:
+  §5.1/§5.2 mark both REQUIRED and §8.3 step 3.2 makes checking for their
+  existence a normative Relying Party step, but the decoder previously accepted a
+  token missing either (`iat==0`/`sub==""` decoded to the Go zero value and was
+  silently tolerated). `decodeClaims` (`token.go`) now rejects both with
+  `ErrMalformed` — see the "iat/sub required-claim" fix
+  (`.superpowers/sdd/task-iat-sub-required-brief.md`).
+- The Attestation Revocation List ("Identifier List") wire format is **confirmed
+  absent** from the vendored `draft-ietf-oauth-status-list-12` text: no mention
+  of "identifier list", "attestation revocation" or "ARL" appears anywhere in the
+  ~4000-line document. This mechanism has no IETF basis at all — it is purely an
+  ARF invention, and its wire format is still governed solely by the un-vendored
+  Commission TS referenced by ARF VCR_11. The JSON/CBOR shape in `identifier.go`
+  is therefore a documented synthetic choice (ADR-0007 governs the OSS packaging
+  / synthetic test-vector approach, not the wire format itself), and its
+  `iat`/`sub` semantics are NOT governed by draft-12 — the required-claims fix
+  above deliberately does not touch `decodeIdentifierList` / `tokenMeta`. The
+  mechanism therefore stays **experimental**: this library only hardens it to
+  fail closed on an unrecognized shape (missing `identifier_list.ids`); it must
+  be verified against the VCR_11 TS before v1.
+- Status Types `0x03` and the range `0x0B`–`0x0F` are registered in the draft
+  (§7.1 Status Types Values; §14.5.2 initial registry contents) as
+  `APPLICATION_SPECIFIC`, and all other Status Type values are "reserved for
+  future registration". This confirms `mapStatus`'s (`status.go`) default-to-
+  `StatusUnknown` for any value besides `0x00`/`0x01`/`0x02` is spec-correct
+  behaviour, not an approximation.
 - ARF citation fix: the "a Relying Party that verifies revocation SHALL support
   BOTH the Attestation Status List and Attestation Revocation List mechanisms"
   requirement is **VCR_12**, not VCR_02 (VCR_02 concerns which revocation

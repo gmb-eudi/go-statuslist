@@ -197,16 +197,38 @@ type statusListClaims struct {
 	Lst  []byte
 }
 
-// decodeClaims decodes the verified token payload.
+// decodeClaims decodes the verified token payload and enforces the two claims
+// that draft-ietf-oauth-status-list-12 marks REQUIRED on a Status List Token.
 func decodeClaims(format string, payload []byte) (statusListClaims, error) {
+	var cl statusListClaims
+	var err error
 	switch format {
 	case "jwt":
-		return decodeJWTClaims(payload)
+		cl, err = decodeJWTClaims(payload)
 	case "cwt":
-		return decodeCWTClaims(payload)
+		cl, err = decodeCWTClaims(payload)
 	default:
 		return statusListClaims{}, fmt.Errorf("%w: claims for format %q", ErrUnsupported, format)
 	}
+	if err != nil {
+		return statusListClaims{}, err
+	}
+	// draft-ietf-oauth-status-list-12 §5.1 (sub/iat REQUIRED, JWT) and §5.2
+	// (2=sub / 6=iat REQUIRED, CWT); §8.3 step 3.2 makes "check for the
+	// existence of the required claims" a normative Relying Party step. A
+	// missing claim decodes to its Go zero value ("" / 0) indistinguishably
+	// from a legitimately-absent value, so reject rather than silently treat as
+	// absent (fail closed, hard rule 7). Enforced here (once) rather than in
+	// decodeJWTClaims/decodeCWTClaims so the rule is single-sourced across both
+	// wire formats. Both EU reference verifier libraries (Kotlin, Swift) already
+	// hard-reject on this same condition.
+	if cl.Sub == "" {
+		return statusListClaims{}, fmt.Errorf("%w: missing required sub claim", ErrMalformed)
+	}
+	if cl.Iat == 0 {
+		return statusListClaims{}, fmt.Errorf("%w: missing required iat claim", ErrMalformed)
+	}
+	return cl, nil
 }
 
 // jwtPayload mirrors the JSON Status List Token claims (§5.1). Standard JWT
