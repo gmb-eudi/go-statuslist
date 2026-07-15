@@ -113,7 +113,7 @@ is meant to be embedded verbatim in a verification report.
 
 > **Suspended** is reported as its own `StatusSuspended`. Callers that treat
 > suspension as (temporary) invalidity should map it accordingly — e.g.
-> verifier-core maps it to `err:revocation:revoked` with a `suspended=true`
+> eudi-verifier-core maps it to `err:revocation:revoked` with a `suspended=true`
 > detail.
 
 ## Policy: fail-closed vs fail-open

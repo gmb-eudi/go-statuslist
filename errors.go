@@ -2,7 +2,7 @@ package statuslist
 
 import "errors"
 
-// Sentinel errors. Framework-free (ADR-0004): callers (verifier-core) map
+// Sentinel errors. Framework-free (ADR-0004): callers (eudi-verifier-core) map
 // these to problem codes — a StatusRevoked/StatusSuspended verdict to
 // err:revocation:revoked (suspended=true detail per the WP-04 Decisions), an
 // inconclusive result to err:revocation:unavailable. None carry attribute
