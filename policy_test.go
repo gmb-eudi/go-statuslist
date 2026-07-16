@@ -13,7 +13,7 @@ var epoch = time.Unix(1_700_000_000, 0)
 
 func fixedClock() sl.Option { return sl.WithClock(func() time.Time { return epoch }) }
 
-// T-04.6: ARF Topic 7 VCR_01 — a credential valid < 24h is exempt; the check
+// ARF Topic 7 VCR_01 — a credential valid < 24h is exempt; the check
 // is skipped without any fetch.
 func TestShortLivedSkip(t *testing.T) {
 	ti := newTestIssuer(t)
@@ -77,7 +77,7 @@ func TestFetchFailurePolicyBranches(t *testing.T) {
 	})
 }
 
-// T-04.6: MaxStale grace on the token exp.
+// MaxStale grace on the token exp.
 func TestMaxStale(t *testing.T) {
 	ti := newTestIssuer(t)
 	statuses := []int{0, 1}

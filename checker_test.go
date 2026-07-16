@@ -17,7 +17,7 @@ func TestNewCheckerNonNil(t *testing.T) {
 
 // Fail-closed is the default posture (the Policy zero value); fail-open
 // requires the explicit per-client flag (Policy.AllowFailOpen == true) and is
-// recorded in Provenance (hard rule 7). Exercised here via an unsupported ref
+// recorded in Provenance (fail closed). Exercised here via an unsupported ref
 // kind so the test stays valid for the whole WP (Task 2/5 never make
 // RefKind(99) meaningful).
 func TestFailClosedPolicy(t *testing.T) {
@@ -49,7 +49,7 @@ func TestFailClosedPolicy(t *testing.T) {
 }
 
 // Outcome values are stable, value-free strings embedded verbatim in the
-// verification report (hard rule 7).
+// verification report (fail closed).
 func TestOutcomeStringsStable(t *testing.T) {
 	for got, want := range map[sl.Outcome]string{
 		sl.OutcomeChecked:           "checked",

@@ -9,7 +9,7 @@ import (
 	sl "github.com/gmb-eudi/go-statuslist"
 )
 
-// fakeFetcher serves a fixed body (no network — conventions.md) and counts calls.
+// fakeFetcher serves a fixed body (no network) and counts calls.
 type fakeFetcher struct {
 	body  []byte
 	err   error
@@ -33,7 +33,7 @@ func tokenRef(idx int) sl.StatusRef {
 	return sl.StatusRef{Kind: sl.RefTokenStatusList, URI: listURI, Index: idx}
 }
 
-// T-04.2: bit widths 1/2/4/8, index lookup, VALID/INVALID/SUSPENDED mapping.
+// Bit widths 1/2/4/8, index lookup, VALID/INVALID/SUSPENDED mapping.
 func TestTokenStatusListBitWidthsJWT(t *testing.T) {
 	ti := newTestIssuer(t)
 	for _, bits := range []int{1, 2, 4, 8} {
@@ -72,7 +72,7 @@ func TestTokenStatusListBitWidthsJWT(t *testing.T) {
 	}
 }
 
-// T-04.2 negatives: index-out-of-range, unknown bit width, decompress bomb,
+// Negatives: index-out-of-range, unknown bit width, decompress bomb,
 // signature failure — all typed, all fail-closed by default.
 func TestTokenStatusListErrorsJWT(t *testing.T) {
 	ti := newTestIssuer(t)

@@ -23,9 +23,9 @@ type tokenMeta struct {
 // credential identifiers: a listed id ⇒ revoked, an absent id ⇒ valid.
 //
 // FORMAT FLAG: the wire shape is a documented synthetic choice, packaged and
-// test-vectored per ADR-0007 (OSS packaging / synthetic test vectors — ADR-0007
-// does NOT define the ARL wire format itself). The format's authority is the
-// WP-04 Decisions plus the (unvendored) Commission TS referenced by VCR_11;
+// test-vectored with synthetic vectors (which do NOT define the ARL wire
+// format itself). The format's authority is the design decisions plus the
+// (unvendored) Commission TS referenced by VCR_11;
 // until that TS is vendored and checked, this mechanism is experimental and
 // this module only guarantees it fails closed on an unrecognized shape
 // (SPECREFS.md).
@@ -75,7 +75,7 @@ func (c *Checker) checkIdentifierList(ctx context.Context, in CheckInput, prov P
 // member absent" an explicit nil pointer, unconflated with "ids": [] (a
 // non-nil pointer to an empty slice) regardless of decoder quirks across the
 // JSON and CBOR paths. A nil IdentifierList OR a nil IDs pointer ⇒
-// ErrMalformed (fail closed, hard rule 7) — mirrors decodeJWTClaims's
+// ErrMalformed (fail closed) — mirrors decodeJWTClaims's
 // `Lst == ""` guard. A non-nil IDs pointing at an empty slice is accepted:
 // nobody is revoked, every id resolves StatusValid.
 type jsonIDList struct {

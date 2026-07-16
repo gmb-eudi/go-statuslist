@@ -10,7 +10,7 @@ import (
 
 // Task A6: explicit conformance assertions that the verifier accepts the
 // full draft-ietf-oauth-status-list shape a real issuer emits — typ + iat +
-// exp + ttl all present together (§5.1/§5.2) — plus the CWT symmetric case
+// exp + ttl all present together ([Token Status List §5.1/§5.2]) — plus the CWT symmetric case
 // for the A4 review minor (empty identifier_list ⇒ StatusValid, not
 // ErrMalformed).
 

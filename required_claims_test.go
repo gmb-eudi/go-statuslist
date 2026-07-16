@@ -8,13 +8,13 @@ import (
 	sl "github.com/gmb-eudi/go-statuslist"
 )
 
-// draft-ietf-oauth-status-list-12 §5.1 (JWT) and §5.2 (CWT) both mark `sub` and
-// `iat` as REQUIRED claims on a Status List Token; §8.3 step 3.2 makes checking
+// [Token Status List §5.1] (JWT) and [Token Status List §5.2] (CWT) both mark `sub` and
+// `iat` as REQUIRED claims on a Status List Token; [Token Status List §8.3] step 3.2 makes checking
 // for required-claim existence a normative Relying Party validation step. A
 // token missing either claim decodes to a Go zero value ("" / 0) that is
 // indistinguishable from a legitimately-absent value, so decodeClaims rejects
-// it with ErrMalformed rather than silently tolerating it (fail closed, hard
-// rule 7). Both EU reference verifier libraries (Kotlin @Required/isNotBlank,
+// it with ErrMalformed rather than silently tolerating it (fail closed).
+// Both EU reference verifier libraries (Kotlin @Required/isNotBlank,
 // Swift guard-throw) already hard-reject the same condition. The missing-iat
 // JWT case is covered by TestIatMissingFailsClosed in freshness_test.go (it
 // supersedes the old TestIatAbsentSkipsCheck); the CWT equivalent lives here.

@@ -23,9 +23,9 @@ const (
 )
 
 // testIssuer is a minimal in-test Status List Token issuer built on
-// go-eudi-crypto (ADR-0007 permits generated vectors — draft-ietf-oauth-status-list
-// is not vendored in references/, see SPECREFS.md). It signs JWT (§5.1) and
-// CWT (§5.2) status list tokens (and identifier lists, Task 5) with a fresh
+// go-eudi-crypto (generated test vectors — the Token Status List draft
+// is not vendored in the repo, see SPECREFS.md). It signs JWT ([Token Status List §5.1]) and
+// CWT ([Token Status List §5.2]) status list tokens (and identifier lists) with a fresh
 // P-256 key. All builders take testing.TB so both tests and fuzz seeds use them.
 type testIssuer struct {
 	key *ecdsa.PrivateKey
@@ -49,7 +49,7 @@ func (ti *testIssuer) resolver() sl.KeyResolver {
 	}
 }
 
-// packBits packs statuses little-endian per draft-ietf-oauth-status-list §4:
+// packBits packs statuses little-endian per [Token Status List §4]:
 // entry 0 occupies the least-significant bits of byte 0.
 func packBits(bits int, statuses []int) []byte {
 	perByte := 8 / bits
@@ -88,7 +88,7 @@ func (o tokenOpts) compressed() []byte {
 	return deflate(packBits(o.bits, o.statuses))
 }
 
-// jwt builds and signs a JWT Status List Token (§5.1). lst is base64url.
+// jwt builds and signs a JWT Status List Token ([Token Status List §5.1]). lst is base64url.
 func (ti *testIssuer) jwt(tb testing.TB, o tokenOpts) []byte {
 	tb.Helper()
 	payload := map[string]any{
@@ -117,7 +117,7 @@ func (ti *testIssuer) jwt(tb testing.TB, o tokenOpts) []byte {
 	return tok
 }
 
-// cwt builds and signs a CWT Status List Token (§5.2). Claim keys sub=2,
+// cwt builds and signs a CWT Status List Token ([Token Status List §5.2]). Claim keys sub=2,
 // exp=4, iat=6, ttl=65534, status_list=65533; lst is a CBOR byte string.
 // (Private claim keys are FLAGGED for verification — see cwt.go / SPECREFS.md.)
 func (ti *testIssuer) cwt(tb testing.TB, o tokenOpts) []byte {

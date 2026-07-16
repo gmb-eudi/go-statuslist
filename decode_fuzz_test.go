@@ -8,7 +8,7 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-// Final-review fix (T-04.7, hard rule 5): FuzzStatusListToken (fuzz_test.go)
+// Final-review fix (must never panic on untrusted input): FuzzStatusListToken (fuzz_test.go)
 // runs full signature verification before decoding, so a mutated input dies
 // at ErrVerify on essentially every run and the claim/identifier-list decoders
 // underneath are, in practice, unfuzzed. These white-box targets call the
@@ -22,7 +22,7 @@ import (
 // decodeJWTClaims, "cwt" claims via decodeCWTClaims) directly with fuzzed
 // bytes.
 func FuzzDecodeClaims(f *testing.F) {
-	// A real JSON claims blob (jwtPayload shape, Token Status List §5.1).
+	// A real JSON claims blob (jwtPayload shape, [Token Status List §5.1]).
 	validJSON, err := json.Marshal(map[string]any{
 		"sub": "https://issuer.example/statuslists/1",
 		"iat": 1_700_000_000,
@@ -38,7 +38,7 @@ func FuzzDecodeClaims(f *testing.F) {
 	}
 	f.Add(validJSON)
 
-	// A real CBOR claims blob (cwtPayload shape, Token Status List §5.2).
+	// A real CBOR claims blob (cwtPayload shape, [Token Status List §5.2]).
 	validCBOR, err := cbor.Marshal(map[int64]any{
 		2:     "https://issuer.example/statuslists/1",
 		4:     int64(1_800_000_000),
@@ -69,7 +69,7 @@ func FuzzDecodeClaims(f *testing.F) {
 
 // FuzzDecodeIdentifierList drives decodeIdentifierList for both wire formats
 // directly with fuzzed bytes (the ARF Attestation Revocation List / VCR_11
-// mechanism, ADR-0007) — this parser previously had zero fuzz coverage.
+// mechanism) — this parser previously had zero fuzz coverage.
 func FuzzDecodeIdentifierList(f *testing.F) {
 	// A real JSON identifier-list blob (jsonIDList shape).
 	validJSON, err := json.Marshal(map[string]any{

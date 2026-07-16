@@ -3,15 +3,15 @@ package statuslist
 import "time"
 
 // Status is the resolved revocation status of a referenced credential. The
-// first four values map to Token Status List §7 status types; a fetched list
+// first four values map to [Token Status List §7] status types; a fetched list
 // entry only ever produces one of them.
 type Status int
 
-// Status values. The first four map to Token Status List §7 status types.
+// Status values. The first four map to [Token Status List §7] status types.
 const (
-	StatusValid     Status = iota // Token Status List §7: 0x00 VALID
-	StatusRevoked                 // Token Status List §7: 0x01 INVALID
-	StatusSuspended               // Token Status List §7: 0x02 SUSPENDED
+	StatusValid     Status = iota // [Token Status List §7]: 0x00 VALID
+	StatusRevoked                 // [Token Status List §7]: 0x01 INVALID
+	StatusSuspended               // [Token Status List §7]: 0x02 SUSPENDED
 	StatusUnknown                 // status type unrecognised, or status not determinable under policy
 
 	// StatusSkippedShortLived is NOT a Token Status List value: Check returns
@@ -39,7 +39,7 @@ func (s Status) String() string {
 	}
 }
 
-// mapStatus maps a raw Token Status List §7 status type to a Status. Values
+// mapStatus maps a raw [Token Status List §7] status type to a Status. Values
 // 0x03 and the application-specific range are not revocation verdicts here.
 func mapStatus(v int) Status {
 	switch v {
@@ -55,7 +55,7 @@ func mapStatus(v int) Status {
 }
 
 // Outcome records HOW a status verdict was reached. It is a stable, value-free
-// string surfaced verbatim in the verification report (hard rule 7).
+// string surfaced verbatim in the verification report (fail closed).
 type Outcome string
 
 // Outcome values.
@@ -83,12 +83,12 @@ type TokenFormat int
 // TokenFormat values.
 const (
 	FormatAuto TokenFormat = iota // compact JWS ⇒ JWT, else CWT
-	FormatJWT                     // Token Status List §5.1 (statuslist+jwt)
-	FormatCWT                     // Token Status List §5.2 (application/statuslist+cwt)
+	FormatJWT                     // [Token Status List §5.1] (statuslist+jwt)
+	FormatCWT                     // [Token Status List §5.2] (application/statuslist+cwt)
 )
 
 // StatusRef identifies the revocation datum to consult. The caller extracts it
-// from a credential's status claim: Token Status List §6 status_list{uri, idx}
+// from a credential's status claim: [Token Status List §6] status_list{uri, idx}
 // for RefTokenStatusList, or the credential identifier + list URI for
 // RefIdentifierList.
 type StatusRef struct {
@@ -99,8 +99,8 @@ type StatusRef struct {
 	Format TokenFormat // encoding hint for the fetched token; FormatAuto sniffs
 }
 
-// Policy is the per-client revocation policy (hard rule 7). The zero value is
-// fail-closed, matching hard rule 7's default; AllowFailOpen is the explicit
+// Policy is the per-client revocation policy (fail-closed default). The zero value is
+// fail-closed; AllowFailOpen is the explicit
 // per-client opt-out that is recorded in Provenance and shown in the
 // verification report.
 type Policy struct {
@@ -109,7 +109,7 @@ type Policy struct {
 }
 
 // Provenance records how a verdict was reached; identifiers and outcomes only,
-// never attribute values (hard rule 3). Embedded verbatim in the stored
+// never attribute values. Embedded verbatim in the stored
 // verification report.
 type Provenance struct {
 	Mechanism string    // "token-status-list" | "identifier-list"
@@ -131,5 +131,5 @@ type Provenance struct {
 const ShortLivedThreshold = 24 * time.Hour
 
 // DefaultMaxDecompressed caps the inflated status list byte array (zip-bomb
-// defence, hard rule 5). Overridable via WithMaxDecompressed.
+// defence). Overridable via WithMaxDecompressed.
 const DefaultMaxDecompressed = 1 << 20 // 1 MiB ⇒ up to ~8.3M single-bit entries

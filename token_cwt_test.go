@@ -9,7 +9,7 @@ import (
 	sl "github.com/gmb-eudi/go-statuslist"
 )
 
-// T-04.3: same bit-width / index / status matrix as T-04.2, over CWT (COSE).
+// Same bit-width / index / status matrix as the JWT case, over CWT (COSE).
 func TestTokenStatusListBitWidthsCWT(t *testing.T) {
 	ti := newTestIssuer(t)
 	for _, bits := range []int{1, 2, 4, 8} {
@@ -45,7 +45,7 @@ func TestTokenStatusListBitWidthsCWT(t *testing.T) {
 	}
 }
 
-// T-04.3 negatives over CWT: index OOR, unknown bit width, decompress bomb,
+// Negatives over CWT: index OOR, unknown bit width, decompress bomb,
 // signature failure — all typed, all fail-closed.
 func TestTokenStatusListErrorsCWT(t *testing.T) {
 	ti := newTestIssuer(t)

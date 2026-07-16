@@ -13,11 +13,11 @@ import (
 )
 
 // Task A2: the Status List Token's `typ` (JOSE header / COSE label 16) is
-// REQUIRED and must equal the status-list media type (draft §5.1/§5.2). A
+// REQUIRED and must equal the status-list media type ([Token Status List §5.1/§5.2]). A
 // token of another type must never be accepted for a status-list reference,
-// even if its signature and sub bind — fail closed (hard rule 7).
+// even if its signature and sub bind — fail closed.
 
-// statusListJWTBody returns a valid status-list JSON claims body (§5.1) bound
+// statusListJWTBody returns a valid status-list JSON claims body ([Token Status List §5.1]) bound
 // to listURI, independent of the `typ` header under test.
 func statusListJWTBody(tb testing.TB) []byte {
 	tb.Helper()
@@ -35,7 +35,7 @@ func statusListJWTBody(tb testing.TB) []byte {
 	return body
 }
 
-// statusListCWTBody returns a valid status-list CBOR claims body (§5.2) bound
+// statusListCWTBody returns a valid status-list CBOR claims body ([Token Status List §5.2]) bound
 // to listURI, independent of the `typ` header under test.
 func statusListCWTBody(tb testing.TB) []byte {
 	tb.Helper()

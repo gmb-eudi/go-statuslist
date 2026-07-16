@@ -2,11 +2,11 @@ package statuslist
 
 import "errors"
 
-// Sentinel errors. Framework-free (ADR-0004): callers (eudi-verifier-core) map
+// Sentinel errors. Framework-free: callers (eudi-verifier-core) map
 // these to problem codes — a StatusRevoked/StatusSuspended verdict to
-// err:revocation:revoked (suspended=true detail per the WP-04 Decisions), an
+// err:revocation:revoked (suspended=true detail), an
 // inconclusive result to err:revocation:unavailable. None carry attribute
-// values (hard rule 3); they may carry list URIs, indices and kids.
+// values; they may carry list URIs, indices and kids.
 var (
 	ErrUnsupported      = errors.New("statuslist: unsupported reference kind or token format")
 	ErrFetch            = errors.New("statuslist: status list could not be fetched")
@@ -21,9 +21,9 @@ var (
 	ErrExpired          = errors.New("statuslist: status list token expired beyond MaxStale")
 	// ErrWrongType is returned when a Status List Token's `typ` (JOSE header /
 	// COSE label 16) is absent or not the expected status-list media type
-	// (draft §5.1/§5.2). Fail closed.
+	// ([Token Status List §5.1/§5.2]). Fail closed.
 	ErrWrongType = errors.New("statuslist: wrong or missing typ")
 	// ErrIssuedInFuture is returned when a token's iat is later than now+ClockSkew
-	// (draft §5 / RFC 8392 iat). Fail closed.
+	// ([Token Status List §5] / RFC 8392 iat). Fail closed.
 	ErrIssuedInFuture = errors.New("statuslist: token issued in the future")
 )

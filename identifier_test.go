@@ -14,7 +14,7 @@ func idRef(id string) sl.StatusRef {
 	return sl.StatusRef{Kind: sl.RefIdentifierList, URI: idListURI, ID: id}
 }
 
-// T-04.5: listed id ⇒ revoked; absent id ⇒ valid; for both JWT and CWT.
+// Listed id ⇒ revoked; absent id ⇒ valid; for both JWT and CWT.
 func TestIdentifierList(t *testing.T) {
 	ti := newTestIssuer(t)
 	forms := map[string]func(tb testing.TB, o idListOpts) []byte{"jwt": ti.idJWT, "cwt": ti.idCWT}
@@ -73,8 +73,8 @@ func TestIdentifierListFailClosed(t *testing.T) {
 	}
 }
 
-// Review fix (T-04.5): a validly-signed token that OMITS the identifier_list
-// wrapper entirely must fail closed (hard rule 7) rather than silently
+// Review fix: a validly-signed token that OMITS the identifier_list
+// wrapper entirely must fail closed rather than silently
 // decoding to an empty id set — which would report StatusValid for every
 // credential id, unconditionally, under any policy.
 func TestIdentifierListMissingWrapperFailClosed(t *testing.T) {
@@ -120,7 +120,7 @@ func TestIdentifierListEmptyIsValid(t *testing.T) {
 // wrong shape — a flat `{"id": status}` map with no "ids" member, as the
 // EU/GO issuer's format ships — must fail closed rather than decode to an
 // empty revoked-set (which would silently report StatusValid for every id,
-// unconditionally, defeating the revocation check). T-04.5/A4.
+// unconditionally, defeating the revocation check).
 func TestIdentifierListWrongShapeWrapperFailClosed(t *testing.T) {
 	ti := newTestIssuer(t)
 	t.Run("jwt", func(t *testing.T) {

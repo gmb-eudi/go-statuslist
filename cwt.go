@@ -7,7 +7,7 @@ import (
 )
 
 // cwtDecMode is a hardened CBOR decoder for the (untrusted) CWT payload
-// (conventions.md: max nesting, max array/map sizes, duplicate-key reject,
+// (CBOR hardening: max nesting, max array/map sizes, duplicate-key reject,
 // indefinite-length and tags forbidden). Static options ⇒ any construction
 // error is a programming bug and panics at init, never on input.
 var cwtDecMode = mustDecMode()
@@ -27,14 +27,14 @@ func mustDecMode() cbor.DecMode {
 	return dm
 }
 
-// cwtPayload mirrors the CBOR Status List Token claims (Token Status List §5.2).
+// cwtPayload mirrors the CBOR Status List Token claims ([Token Status List §5.2]).
 // Standard CWT claim keys: sub=2, exp=4, iat=6 (RFC 8392). The two private claim
 // keys status_list=65533 and ttl=65534, and the CWT typ header label 16 (see the
 // spec subpackage), are CONFIRMED directly against the vendored primary source
-// (references/statuslist-draft12.txt §5.2 / §14.3) — the earlier EU Statium
+// ([Token Status List §5.2, §14.3]) — the earlier EU Statium
 // reference-verifier cross-check (eudi-lib-kmp-statium-main /
 // eudi-lib-ios-statium-swift-main) independently agrees. sub (2) and iat (6) are
-// REQUIRED (§5.2); decodeClaims enforces their existence (§8.3 step 3.2).
+// REQUIRED ([Token Status List §5.2]); decodeClaims enforces their existence ([Token Status List §8.3] step 3.2).
 // If issuers wrap the claims set in the CWT CBOR tag 61 (RFC 8392), relax TagsMd
 // or strip the tag — verify against the draft.
 type cwtPayload struct {
@@ -45,7 +45,7 @@ type cwtPayload struct {
 	StatusList cwtStatusList `cbor:"65533,keyasint"`
 }
 
-// cwtStatusList mirrors the CBOR status_list value (§5.2): text keys "bits"
+// cwtStatusList mirrors the CBOR status_list value ([Token Status List §5.2]): text keys "bits"
 // (uint) and "lst" (byte string, zlib-compressed).
 type cwtStatusList struct {
 	Bits int    `cbor:"bits"`

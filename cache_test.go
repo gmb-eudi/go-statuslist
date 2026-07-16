@@ -27,7 +27,7 @@ func (c *fakeCache) Set(k string, v []byte, ttl time.Duration) {
 	c.sets++
 }
 
-// T-04.7: a fresh cache entry short-circuits the fetch; the served list is
+// A fresh cache entry short-circuits the fetch; the served list is
 // re-verified and reported as cached.
 func TestCacheHitAvoidsFetch(t *testing.T) {
 	ti := newTestIssuer(t)
@@ -53,7 +53,7 @@ func TestCacheHitAvoidsFetch(t *testing.T) {
 	}
 }
 
-// T-04.7: an expired/absent cache entry (Get ok=false) triggers a refetch, and
+// An expired/absent cache entry (Get ok=false) triggers a refetch, and
 // the fresh list is cached with a TTL derived from the token.
 func TestCacheMissFetchesAndCaches(t *testing.T) {
 	ti := newTestIssuer(t)
@@ -105,7 +105,7 @@ func TestCacheMissFetchesAndCaches(t *testing.T) {
 	}
 }
 
-// T-04.7: refetch failure honours policy.
+// Refetch failure honours policy.
 func TestRefetchFailureHonorsPolicy(t *testing.T) {
 	ti := newTestIssuer(t)
 	t.Run("fail-closed", func(t *testing.T) {

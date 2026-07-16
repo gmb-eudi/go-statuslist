@@ -8,7 +8,7 @@ import (
 )
 
 // FuzzStatusListToken feeds arbitrary bytes as a status list token through the
-// full fetch→verify→decode→inflate→index path. It must never panic (hard rule 5).
+// full fetch→verify→decode→inflate→index path. It must never panic.
 func FuzzStatusListToken(f *testing.F) {
 	ti := newTestIssuer(f)
 	f.Add(ti.jwt(f, tokenOpts{sub: listURI, iat: 1_700_000_000, bits: 1, statuses: []int{0, 1, 0, 1, 0, 0, 0, 0}}))

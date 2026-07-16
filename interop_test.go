@@ -16,11 +16,11 @@ import (
 
 // interopListURI is the sub/URI baked into the committed fixtures (see
 // testdata/interop/SOURCE.md). It must equal StatusRef.URI or the Checker's
-// sub-binding (Token Status List §5) rejects the token.
+// sub-binding ([Token Status List §5]) rejects the token.
 const interopListURI = "https://status-list-go.test/interop/1"
 
 // interopFetcher is a network-free Fetcher that returns the same fixed token
-// bytes for any URI (conventions.md: no network in unit tests). There is exactly
+// bytes for any URI (no network in unit tests). There is exactly
 // one issued list under test.
 type interopFetcher []byte
 
@@ -68,7 +68,7 @@ func TestInteropStatusListGoFixtures(t *testing.T) {
 			// Resolve the issuer key straight from the fixture's own embedded
 			// certificate — self-describing, the way an EU wallet resolving x5c/
 			// x5chain would see it. Trust-anchor validation is intentionally skipped:
-			// hard rule 6 governs production code, not a self-contained test fixture.
+			// the no-x5u/jku-dereference rule governs production code, not a self-contained test fixture.
 			resolve := func(_ context.Context, _ string, _ []byte) (stdcrypto.PublicKey, error) {
 				return cert.PublicKey, nil
 			}
@@ -79,7 +79,7 @@ func TestInteropStatusListGoFixtures(t *testing.T) {
 				index  int
 				status Status
 			}{
-				{3, StatusRevoked}, // Set(3, 1): INVALID/revoked (Token Status List §7)
+				{3, StatusRevoked}, // Set(3, 1): INVALID/revoked ([Token Status List §7])
 				{0, StatusValid},   // untouched: 0x00 VALID — the known-good index
 			} {
 				st, _, err := checker.Check(context.Background(), CheckInput{
@@ -104,7 +104,7 @@ func TestInteropStatusListGoFixtures(t *testing.T) {
 }
 
 // certFromJWTHeader extracts the issuer leaf certificate from a compact-JWS
-// header's x5c array (RFC 7515 §4.1.6: standard base64, NOT base64url — only the
+// header's x5c array ([RFC 7515 §4.1.6]: standard base64, NOT base64url — only the
 // three compact segments are base64url).
 func certFromJWTHeader(t *testing.T, raw []byte) *x509.Certificate {
 	t.Helper()

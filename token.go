@@ -16,7 +16,7 @@ import (
 // checkTokenStatusList implements the IETF Token Status List mechanism
 // (draft-ietf-oauth-status-list): load the Status List Token (cache-preferred,
 // Task 7), verify its signature via the injected resolver + go-eudi-crypto
-// (hard rule 4), decode the claims, bind the token's sub to the referenced
+// (no hard-coded algorithm literal), decode the claims, bind the token's sub to the referenced
 // list URI (Task 4), enforce the token's exp with a MaxStale grace (Task 6),
 // cache the freshly fetched raw token under a ttl/exp-derived lifetime (Task
 // 7), inflate the status list under a size cap, and read the entry at the
@@ -37,10 +37,10 @@ func (c *Checker) checkTokenStatusList(ctx context.Context, in CheckInput, prov 
 	if err != nil {
 		return c.failClosed(in.Policy, prov, err)
 	}
-	// Token Status List §5: the Status List Token's sub MUST equal the uri of
+	// [Token Status List §5]: the Status List Token's sub MUST equal the uri of
 	// the Status List reference in the credential (StatusRef.URI). Reject a
 	// valid-but-wrong list substituted for the referenced one. URIs are
-	// identifiers, not attribute values (hard rule 3).
+	// identifiers, not attribute values.
 	if claims.Sub != in.Ref.URI {
 		return c.failClosed(in.Policy, prov, fmt.Errorf("%w: token sub=%q ref uri=%q", ErrSubMismatch, claims.Sub, in.Ref.URI))
 	}
@@ -68,7 +68,7 @@ func (c *Checker) checkTokenStatusList(ctx context.Context, in CheckInput, prov 
 // load retrieves the raw list document, preferring a fresh cache entry. The
 // Cache enforces its own TTL (Get returns ok=false once expired), so an
 // expired/absent entry falls through to a network refetch (Token Status List
-// §8 caching; ARF Topic 7 VCR guidance: cache, refetch when stale).
+// [Token Status List §8] caching; ARF Topic 7 VCR guidance: cache, refetch when stale).
 func (c *Checker) load(ctx context.Context, uri string) (raw []byte, fromCache bool, err error) {
 	if c.cache != nil {
 		if cached, ok := c.cache.Get(uri); ok && len(cached) > 0 {
@@ -89,7 +89,7 @@ func (c *Checker) load(ctx context.Context, uri string) (raw []byte, fromCache b
 // signature via go-eudi-crypto. It returns the verified payload and a format
 // tag ("jwt"/"cwt"). It is SHARED by checkTokenStatusList and
 // checkIdentifierList (ARF Identifier List / ARL): the `typ` check (draft
-// §5.1/§5.2, fail closed per hard rule 7) therefore only applies when
+// [Token Status List §5.1/§5.2], fail closed) therefore only applies when
 // in.Ref.Kind == RefTokenStatusList — Identifier List tokens carry a
 // different, currently unvalidated `typ` (identifierlist+jwt /
 // application/identifierlist+cwt; de-scoped here).
@@ -102,7 +102,7 @@ func (c *Checker) verifyToken(ctx context.Context, in CheckInput, raw []byte) (p
 		return nil, "", fmt.Errorf("%w: %v", ErrKeyUnresolved, kerr)
 	}
 	if resolveFormat(in.Ref.Format, raw) == FormatJWT {
-		// Token Status List §5.1: statuslist+jwt, verified as a compact JWS.
+		// [Token Status List §5.1]: statuslist+jwt, verified as a compact JWS.
 		p, hdr, verr := eudicrypto.VerifyJWS(raw, key)
 		if verr != nil {
 			return nil, "jwt", fmt.Errorf("%w: %v", ErrVerify, verr)
@@ -114,7 +114,7 @@ func (c *Checker) verifyToken(ctx context.Context, in CheckInput, raw []byte) (p
 		}
 		return p, "jwt", nil
 	}
-	// Token Status List §5.2: application/statuslist+cwt, verified as COSE_Sign1.
+	// [Token Status List §5.2]: application/statuslist+cwt, verified as COSE_Sign1.
 	p, hdr, verr := eudicrypto.VerifyCOSESign1(raw, key)
 	if verr != nil {
 		return nil, "cwt", fmt.Errorf("%w: %v", ErrVerify, verr)
@@ -127,7 +127,7 @@ func (c *Checker) verifyToken(ctx context.Context, in CheckInput, raw []byte) (p
 	return p, "cwt", nil
 }
 
-// ensureTypJWT enforces the JOSE `typ` header (draft §5.1: "statuslist+jwt").
+// ensureTypJWT enforces the JOSE `typ` header ([Token Status List §5.1]: "statuslist+jwt").
 // typ is REQUIRED for a status list token (fail closed) — a token of another
 // type must never be accepted for a status-list reference even if its signature
 // and sub bind.
@@ -139,7 +139,7 @@ func ensureTypJWT(hdr eudicrypto.Header) error {
 	return nil
 }
 
-// ensureTypCWT enforces the COSE `typ` header (label 16, RFC 9596; draft §5.2:
+// ensureTypCWT enforces the COSE `typ` header (label 16, RFC 9596; [Token Status List §5.2]:
 // "application/statuslist+cwt"). Required (fail closed).
 func ensureTypCWT(hdr eudicrypto.COSEHeader) error {
 	t, _ := hdr[spec.HeaderTyp].(string)
@@ -150,8 +150,8 @@ func ensureTypCWT(hdr eudicrypto.COSEHeader) error {
 }
 
 // resolveFormat honours an explicit StatusRef.Format, else sniffs: a compact
-// JWS (§5.1) is ASCII with exactly two '.' separators and base64url segments;
-// anything else is CBOR (CWT, §5.2).
+// JWS ([Token Status List §5.1]) is ASCII with exactly two '.' separators and base64url segments;
+// anything else is CBOR (CWT, [Token Status List §5.2]).
 func resolveFormat(f TokenFormat, raw []byte) TokenFormat {
 	switch f {
 	case FormatJWT:
@@ -187,7 +187,7 @@ func looksLikeJWS(raw []byte) bool {
 }
 
 // statusListClaims is the format-independent view of the Status List Token
-// claims (draft-ietf-oauth-status-list §5). Lst is still zlib-compressed.
+// claims ([Token Status List §5]). Lst is still zlib-compressed.
 type statusListClaims struct {
 	Sub  string
 	Iat  int64
@@ -213,12 +213,12 @@ func decodeClaims(format string, payload []byte) (statusListClaims, error) {
 	if err != nil {
 		return statusListClaims{}, err
 	}
-	// draft-ietf-oauth-status-list-12 §5.1 (sub/iat REQUIRED, JWT) and §5.2
-	// (2=sub / 6=iat REQUIRED, CWT); §8.3 step 3.2 makes "check for the
+	// [Token Status List §5.1] (sub/iat REQUIRED, JWT) and [Token Status List §5.2]
+	// (2=sub / 6=iat REQUIRED, CWT); [Token Status List §8.3] step 3.2 makes "check for the
 	// existence of the required claims" a normative Relying Party step. A
 	// missing claim decodes to its Go zero value ("" / 0) indistinguishably
 	// from a legitimately-absent value, so reject rather than silently treat as
-	// absent (fail closed, hard rule 7). Enforced here (once) rather than in
+	// absent (fail closed). Enforced here (once) rather than in
 	// decodeJWTClaims/decodeCWTClaims so the rule is single-sourced across both
 	// wire formats. Both EU reference verifier libraries (Kotlin, Swift) already
 	// hard-reject on this same condition.
@@ -231,7 +231,7 @@ func decodeClaims(format string, payload []byte) (statusListClaims, error) {
 	return cl, nil
 }
 
-// jwtPayload mirrors the JSON Status List Token claims (§5.1). Standard JWT
+// jwtPayload mirrors the JSON Status List Token claims ([Token Status List §5.1]). Standard JWT
 // claims (iss/aud/nbf/...) are legitimately present and ignored — do NOT reject
 // unknown members here (this is a foreign token, not our own).
 type jwtPayload struct {
@@ -270,7 +270,7 @@ func decodeJWTClaims(payload []byte) (statusListClaims, error) {
 }
 
 // inflate decompresses a zlib (RFC 1950) byte array, capping output at
-// c.maxDecompressed to defend against decompression bombs (hard rule 5). Memory
+// c.maxDecompressed to defend against decompression bombs. Memory
 // is bounded to cap+1 bytes regardless of input.
 func (c *Checker) inflate(compressed []byte) ([]byte, error) {
 	zr, err := zlib.NewReader(bytes.NewReader(compressed))
@@ -291,7 +291,7 @@ func (c *Checker) inflate(compressed []byte) ([]byte, error) {
 
 // statusAt reads the status value at index i. Entries are packed little-endian
 // within each byte: index 0 occupies the least-significant bits
-// (draft-ietf-oauth-status-list §4).
+// ([Token Status List §4]).
 func statusAt(lst []byte, bits, index int) (int, error) {
 	switch bits {
 	case 1, 2, 4, 8:

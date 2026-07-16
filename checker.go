@@ -9,7 +9,7 @@ import (
 
 // Fetcher retrieves a status list / identifier list document by URI. In
 // services it wraps the platform-kit httpclient (correlation propagation); in
-// tests it is a fake with no network (ADR-0004; conventions.md: no network in
+// tests it is a fake with no network (framework-free; no network in
 // unit tests).
 type Fetcher interface {
 	Get(ctx context.Context, url string) ([]byte, error)
@@ -23,8 +23,8 @@ type Cache interface {
 }
 
 // KeyResolver resolves the verification key of a status list token's issuer.
-// It is injected so trust-anchor resolution stays in the trust layer (hard
-// rule 6): go-statuslist never dereferences jku/x5u/kid to fetch keys. It
+// It is injected so trust-anchor resolution stays in the trust layer:
+// go-statuslist never dereferences jku/x5u/kid to fetch keys. It
 // receives the list URI and the raw (unverified) token, from which a trust
 // resolver may read the kid / x5c header to select the key.
 type KeyResolver func(ctx context.Context, listURI string, token []byte) (stdcrypto.PublicKey, error)
@@ -53,7 +53,7 @@ type Checker struct {
 type Option func(*Checker)
 
 // WithClock injects the clock used for exp/ttl/short-lived reasoning
-// (conventions.md). Ignored if nil.
+// (no wall clock). Ignored if nil.
 func WithClock(clk func() time.Time) Option {
 	return func(c *Checker) {
 		if clk != nil {
@@ -73,7 +73,7 @@ func WithMaxDecompressed(n int) Option {
 }
 
 // WithClockSkew tolerates a clock difference between issuer and verifier when
-// checking iat (not-in-future) and exp (draft §5). It is distinct from
+// checking iat (not-in-future) and exp ([Token Status List §5]). It is distinct from
 // Policy.MaxStale, which is a deliberate staleness grace beyond exp; the two
 // compose. Values < 0 are ignored.
 func WithClockSkew(d time.Duration) Option {
@@ -99,7 +99,7 @@ func NewChecker(fetcher Fetcher, cache Cache, opts ...Option) *Checker {
 }
 
 // Check resolves the revocation status of the referenced credential. Fail
-// closed by default (hard rule 7): an inconclusive result returns
+// closed by default: an inconclusive result returns
 // StatusUnknown with a non-nil error unless the client policy explicitly opts
 // into fail-open (Policy.AllowFailOpen == true).
 //
@@ -146,7 +146,7 @@ func (c *Checker) failClosed(p Policy, prov Provenance, cause error) (Status, Pr
 
 // cacheTTL derives the cache lifetime from the token's ttl claim (seconds) and
 // exp (absolute). ttl is the maximum caching time before a refresh (Token
-// Status List §8); exp caps it — never cache past the token's own expiry.
+// [Token Status List §8]); exp caps it — never cache past the token's own expiry.
 // Returns 0 when neither is present ⇒ do not cache.
 func cacheTTL(ttl, exp int64, now time.Time) time.Duration {
 	best := time.Duration(-1)
@@ -176,7 +176,7 @@ func (c *Checker) maybeCache(uri string, raw []byte, ttl, exp int64, fromCache b
 }
 
 // applyFreshness enforces the token's iat (not issued in the future, RFC 8392)
-// and exp (draft §5) against the clock. ClockSkew tolerates clock differences on
+// and exp ([Token Status List §5]) against the clock. ClockSkew tolerates clock differences on
 // both; Policy.MaxStale is an additional deliberate grace beyond exp (within the
 // grace, prov.Stale=true; past exp+MaxStale+skew, ErrExpired). exp==0 ⇒ no
 // token-level expiry (ttl still bounds caching, Task 7); iat==0 ⇒ no iat check.

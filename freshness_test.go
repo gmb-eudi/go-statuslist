@@ -10,10 +10,10 @@ import (
 )
 
 // Task A3: the Status List Token's `iat` must not be in the future (RFC 8392
-// iat; draft §5), and a per-checker WithClockSkew tolerates clock differences
+// iat; [Token Status List §5]), and a per-checker WithClockSkew tolerates clock differences
 // between issuer and verifier on both iat and exp. Policy.MaxStale remains a
 // separate, deliberate staleness grace beyond exp; the two compose (fail
-// closed, hard rule 7).
+// closed).
 
 // TestIatInFutureNoSkew: with no configured clock skew, a token whose iat is
 // after the checker's clock is rejected with ErrIssuedInFuture.
@@ -80,8 +80,8 @@ func TestExpWithinSkewStillAccepted(t *testing.T) {
 }
 
 // TestIatMissingFailsClosed: iat == 0 (the Go zero value for an absent claim)
-// must be rejected — draft-ietf-oauth-status-list-12 §5.1/§5.2 marks iat
-// REQUIRED, §8.3 step 3.2 requires the RP to check for required-claim
+// must be rejected — [Token Status List §5.1/§5.2] marks iat
+// REQUIRED, [Token Status List §8.3] step 3.2 requires the RP to check for required-claim
 // existence. Supersedes the old TestIatAbsentSkipsCheck, which encoded the
 // pre-draft-vendoring assumption that an absent iat could be silently tolerated
 // (applyFreshness treats iat==0 as "no iat check", which is only reachable for

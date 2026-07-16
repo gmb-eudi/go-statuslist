@@ -8,7 +8,7 @@ import (
 	sl "github.com/gmb-eudi/go-statuslist"
 )
 
-// T-04.4: the token sub must equal StatusRef.URI. A mismatch fails
+// The token sub must equal StatusRef.URI. A mismatch fails
 // (fail-closed) for both JWT and CWT; a match still succeeds.
 func TestSubBinding(t *testing.T) {
 	ti := newTestIssuer(t)
