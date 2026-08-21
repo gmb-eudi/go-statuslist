@@ -4,7 +4,7 @@ go 1.26.6
 
 require (
 	github.com/fxamacker/cbor/v2 v2.9.3
-	github.com/gmb-eudi/go-eudi-crypto v0.0.6
+	github.com/gmb-eudi/go-eudi-crypto v0.0.7
 )
 
 require (
