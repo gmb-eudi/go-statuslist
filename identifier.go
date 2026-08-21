@@ -104,7 +104,7 @@ func decodeIdentifierList(format string, payload []byte) (map[string]struct{}, t
 	case "jwt":
 		var p jsonIDList
 		if err := json.Unmarshal(payload, &p); err != nil {
-			return nil, tokenMeta{}, fmt.Errorf("%w: json id list: %v", ErrMalformed, err)
+			return nil, tokenMeta{}, fmt.Errorf("%w: json id list: %w", ErrMalformed, err)
 		}
 		if p.IdentifierList == nil || p.IdentifierList.IDs == nil {
 			return nil, tokenMeta{}, fmt.Errorf("%w: missing identifier_list.ids", ErrMalformed)
@@ -116,7 +116,7 @@ func decodeIdentifierList(format string, payload []byte) (map[string]struct{}, t
 	case "cwt":
 		var p cborIDList
 		if err := cwtDecMode.Unmarshal(payload, &p); err != nil {
-			return nil, tokenMeta{}, fmt.Errorf("%w: cbor id list: %v", ErrMalformed, err)
+			return nil, tokenMeta{}, fmt.Errorf("%w: cbor id list: %w", ErrMalformed, err)
 		}
 		if p.IdentifierList == nil || p.IdentifierList.IDs == nil {
 			return nil, tokenMeta{}, fmt.Errorf("%w: missing identifier_list.ids", ErrMalformed)

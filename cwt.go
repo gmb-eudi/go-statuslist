@@ -55,7 +55,7 @@ type cwtStatusList struct {
 func decodeCWTClaims(payload []byte) (statusListClaims, error) {
 	var p cwtPayload
 	if err := cwtDecMode.Unmarshal(payload, &p); err != nil {
-		return statusListClaims{}, fmt.Errorf("%w: cbor claims: %v", ErrMalformed, err)
+		return statusListClaims{}, fmt.Errorf("%w: cbor claims: %w", ErrMalformed, err)
 	}
 	if len(p.StatusList.Lst) == 0 {
 		return statusListClaims{}, fmt.Errorf("%w: missing status_list.lst", ErrMalformed)

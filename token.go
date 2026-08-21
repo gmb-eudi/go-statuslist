@@ -77,7 +77,7 @@ func (c *Checker) load(ctx context.Context, uri string) (raw []byte, fromCache b
 	}
 	body, ferr := c.fetcher.Get(ctx, uri)
 	if ferr != nil {
-		return nil, false, fmt.Errorf("%w: %v", ErrFetch, ferr)
+		return nil, false, fmt.Errorf("%w: %w", ErrFetch, ferr)
 	}
 	if len(body) == 0 {
 		return nil, false, fmt.Errorf("%w: empty document", ErrFetch)
@@ -99,13 +99,13 @@ func (c *Checker) verifyToken(ctx context.Context, in CheckInput, raw []byte) (p
 	}
 	key, kerr := in.IssuerKeyResolver(ctx, in.Ref.URI, raw)
 	if kerr != nil {
-		return nil, "", fmt.Errorf("%w: %v", ErrKeyUnresolved, kerr)
+		return nil, "", fmt.Errorf("%w: %w", ErrKeyUnresolved, kerr)
 	}
 	if resolveFormat(in.Ref.Format, raw) == FormatJWT {
 		// [Token Status List §5.1]: statuslist+jwt, verified as a compact JWS.
 		p, hdr, verr := eudicrypto.VerifyJWS(raw, key)
 		if verr != nil {
-			return nil, "jwt", fmt.Errorf("%w: %v", ErrVerify, verr)
+			return nil, "jwt", fmt.Errorf("%w: %w", ErrVerify, verr)
 		}
 		if in.Ref.Kind == RefTokenStatusList {
 			if terr := ensureTypJWT(hdr); terr != nil {
@@ -117,7 +117,7 @@ func (c *Checker) verifyToken(ctx context.Context, in CheckInput, raw []byte) (p
 	// [Token Status List §5.2]: application/statuslist+cwt, verified as COSE_Sign1.
 	p, hdr, verr := eudicrypto.VerifyCOSESign1(raw, key)
 	if verr != nil {
-		return nil, "cwt", fmt.Errorf("%w: %v", ErrVerify, verr)
+		return nil, "cwt", fmt.Errorf("%w: %w", ErrVerify, verr)
 	}
 	if in.Ref.Kind == RefTokenStatusList {
 		if terr := ensureTypCWT(hdr); terr != nil {
@@ -248,7 +248,7 @@ type jwtPayload struct {
 func decodeJWTClaims(payload []byte) (statusListClaims, error) {
 	var p jwtPayload
 	if err := json.Unmarshal(payload, &p); err != nil {
-		return statusListClaims{}, fmt.Errorf("%w: json claims: %v", ErrMalformed, err)
+		return statusListClaims{}, fmt.Errorf("%w: json claims: %w", ErrMalformed, err)
 	}
 	if p.StatusList.Lst == "" {
 		return statusListClaims{}, fmt.Errorf("%w: missing status_list.lst", ErrMalformed)
@@ -256,7 +256,7 @@ func decodeJWTClaims(payload []byte) (statusListClaims, error) {
 	lst, err := base64.RawURLEncoding.DecodeString(p.StatusList.Lst)
 	if err != nil {
 		if lst, err = base64.URLEncoding.DecodeString(p.StatusList.Lst); err != nil {
-			return statusListClaims{}, fmt.Errorf("%w: status_list.lst base64url: %v", ErrMalformed, err)
+			return statusListClaims{}, fmt.Errorf("%w: status_list.lst base64url: %w", ErrMalformed, err)
 		}
 	}
 	cl := statusListClaims{Sub: p.Sub, Iat: p.Iat, Bits: p.StatusList.Bits, Lst: lst}
@@ -275,13 +275,13 @@ func decodeJWTClaims(payload []byte) (statusListClaims, error) {
 func (c *Checker) inflate(compressed []byte) ([]byte, error) {
 	zr, err := zlib.NewReader(bytes.NewReader(compressed))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrDecompress, err)
+		return nil, fmt.Errorf("%w: %w", ErrDecompress, err)
 	}
 	defer func() { _ = zr.Close() }()
 	limit := int64(c.maxDecompressed)
 	out, err := io.ReadAll(io.LimitReader(zr, limit+1)) //nolint:gosec // G110: bounded by LimitReader(cap+1) and the len>cap check below
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrDecompress, err)
+		return nil, fmt.Errorf("%w: %w", ErrDecompress, err)
 	}
 	if int64(len(out)) > limit {
 		return nil, fmt.Errorf("%w: > %d bytes", ErrDecompressTooBig, c.maxDecompressed)
