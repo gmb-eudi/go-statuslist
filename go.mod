@@ -1,6 +1,6 @@
 module github.com/gmb-eudi/go-statuslist
 
-go 1.26.6
+go 1.27.0
 
 require (
 	github.com/fxamacker/cbor/v2 v2.9.3

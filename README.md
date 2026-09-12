@@ -23,7 +23,7 @@ only the parsing, verification orchestration, and revocation policy.
 import "github.com/gmb-eudi/go-statuslist"
 ```
 
-Requires Go 1.26. Sole runtime dependencies: `github.com/gmb-eudi/go-eudi-crypto`
+Requires Go 1.27. Sole runtime dependencies: `github.com/gmb-eudi/go-eudi-crypto`
 (all JOSE/COSE verification) and `github.com/fxamacker/cbor/v2` (hardened CWT
 decoding).
 
