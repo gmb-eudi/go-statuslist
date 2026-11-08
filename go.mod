@@ -3,7 +3,7 @@ module github.com/gmb-eudi/go-statuslist
 go 1.27.2
 
 require (
-	github.com/fxamacker/cbor/v2 v2.9.6
+	github.com/fxamacker/cbor/v2 v2.10.0
 	github.com/gmb-eudi/go-eudi-crypto v0.0.9
 )
 
